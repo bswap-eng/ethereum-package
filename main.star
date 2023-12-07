@@ -28,6 +28,7 @@ full_beaconchain_explorer = import_module(
 prometheus = import_module("./src/prometheus/prometheus_launcher.star")
 grafana = import_module("./src/grafana/grafana_launcher.star")
 mev_boost = import_module("./src/mev_boost/mev_boost_launcher.star")
+mev_plus = import_module("./src/mev_plus/mev_plus_launcher.star")
 mock_mev = import_module("./src/mock_mev/mock_mev_launcher.star")
 mev_relay = import_module("./src/mev_relay/mev_relay_launcher.star")
 mev_flood = import_module("./src/mev_flood/mev_flood_launcher.star")
@@ -47,6 +48,7 @@ FIRST_NODE_FINALIZATION_FACT = "cl-boot-finalization-fact"
 HTTP_PORT_ID_FOR_FACT = "http"
 
 MEV_BOOST_SHOULD_CHECK_RELAY = True
+MEV_PLUS_SHOULD_CHECK_RELAY = True
 MOCK_MEV_TYPE = "mock"
 FULL_MEV_TYPE = "full"
 PATH_TO_PARSED_BEACON_STATE = "/genesis/output/parsedBeaconState.json"
@@ -255,6 +257,9 @@ def run(plan, args={}):
                     mev_params.mev_boost_image,
                 )
                 all_mevboost_contexts.append(mev_boost_context)
+    
+    # configure the MEV Plus contexts if some MEV Plus configs have been passed
+    # TODO: Ronny
 
     if len(args_with_right_defaults.additional_services) == 0:
         output = struct(
