@@ -10,12 +10,6 @@ USED_PORTS = {
     )
 }
 
-NETWORK_ID_TO_NAME = {
-    "5": "goerli",
-    "11155111": "sepolia",
-    "3": "ropsten",
-}
-
 
 def launch(plan, mev_plus_launcher, service_name, network_id, mev_plus_image):
     config = get_config(mev_plus_launcher, network_id, mev_plus_image)
