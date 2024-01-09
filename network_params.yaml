@@ -71,9 +71,12 @@ mev_params:
   mev_flood_image: flashbots/mev-flood
   mev_flood_extra_args: []
   mev_flood_seconds_per_bundle: 15
-  mev_plus: true
-  mev_boost: false
-plus_params:
-  external-validator-proxy:
-    address: localhost:18891
+  # use either mev_plus or mev_boost, not both for MEV operations, this defaults to using mev_boost if not specified in this file
+  use_mev_plus: true
+  use_mev_boost: false
+mev_plus_params:
+  mev_plus_image: mev-plus:local
+  mev_plus_modules:
+    external-validator-proxy: # MEV Plus module name
+      address: localhost:18891 # MEV Plus module flag
 grafana_additional_dashboards: []

@@ -6,7 +6,7 @@ MEV_PLUS_PROTOCOL = "TCP"
 
 USED_PORTS = {
     "api": shared_utils.new_port_spec(
-        input_parser.MEV_PLUS_PORT, MEV_PLUS_PROTOCOL, wait="5s"
+        input_parser.PLUS_PORT, MEV_PLUS_PROTOCOL, wait="5s"
     )
 }
 
@@ -17,7 +17,7 @@ def launch(plan, mev_plus_launcher, service_name, network_id, mev_plus_image):
     mev_plus_service = plan.add_service(service_name, config)
 
     return mev_plus_context_module.new_mev_plus_context(
-        mev_plus_service.ip_address, input_parser.MEV_PLUS_PORT
+        mev_plus_service.ip_address, input_parser.PLUS_PORT
     )
 
 
@@ -34,7 +34,7 @@ def get_config(mev_plus_launcher, network_id, mev_plus_image):
         env_vars={
             "GENESIS_FORK_VERSION": "0x10000038",
             "LISTEN_ADDR": "0.0.0.0:{0}".format(
-                input_parser.MEV_PLUS_PORT
+                input_parser.PLUS_PORT
             ),
             "SKIP_RELAY_SIGNATURE_CHECK": "1",
             "RELAYS": mev_plus_launcher.relay_end_points[0],

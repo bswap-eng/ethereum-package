@@ -36,6 +36,10 @@ HIGH_DENEB_VALUE_FORK_VERKLE = 20000
 FLASHBOTS_MEV_BOOST_PORT = 18550
 MEV_BOOST_SERVICE_NAME_PREFIX = "mev-boost-"
 
+# MEV Plus Params
+MEV_PLUS_BUILDER_API_PORT = 18551
+MEV_PLUS_SERVICE_NAME_PREFIX = "mev-plus-"
+
 # Minimum number of validators required for a network to be valid is 64
 MIN_VALIDATORS = 64
 
@@ -55,16 +59,16 @@ ATTR_TO_BE_SKIPPED_AT_ROOT = (
     "goomy_blob_params",
     "tx_spammer_params",
     "custom_flood_params",
+    "mev_plus_params",
 )
 
 
 def input_parser(plan, input_args):
     result = parse_network_params(input_args)
-
     # add default eth2 input params
     result["mev_type"] = None
     result["mev_params"] = get_default_mev_params()
-    result["plus_params"] = {} # Plus already has default values configured in teh software, and is modular so dont set defaults here unless set by user
+    result["mev_plus_params"] = parse_mev_plus_params(input_args)
     result["additional_services"] = DEFAULT_ADDITIONAL_SERVICES
     result["grafana_additional_dashboards"] = []
     result["tx_spammer_params"] = get_default_tx_spammer_params()
@@ -81,10 +85,6 @@ def input_parser(plan, input_args):
             for sub_attr in input_args["mev_params"]:
                 sub_value = input_args["mev_params"][sub_attr]
                 result["mev_params"][sub_attr] = sub_value
-        elif attr == "plus_params":
-            for sub_attr in input_args["plus_params"]:
-                sub_value = input_args["plus_params"][sub_attr]
-                result["plus_params"][sub_attr] = sub_value
         elif attr == "tx_spammer_params":
             for sub_attr in input_args["tx_spammer_params"]:
                 sub_value = input_args["tx_spammer_params"][sub_attr]
@@ -98,10 +98,15 @@ def input_parser(plan, input_args):
         result = enrich_disable_peer_scoring(result)
 
     if result.get("mev_type") in ("mock", "full"):
+        service_prefix = MEV_BOOST_SERVICE_NAME_PREFIX
+        port = FLASHBOTS_MEV_BOOST_PORT
+        if result["mev_params"].get("use_mev_plus", False):
+            service_prefix = MEV_PLUS_SERVICE_NAME_PREFIX
+            port = MEV_PLUS_BUILDER_API_PORT
         result = enrich_mev_extra_params(
             result,
-            MEV_BOOST_SERVICE_NAME_PREFIX,
-            FLASHBOTS_MEV_BOOST_PORT,
+            service_prefix,
+            port,
             result.get("mev_type"),
         )
 
@@ -198,6 +203,12 @@ def input_parser(plan, input_args):
             mev_flood_seconds_per_bundle=result["mev_params"][
                 "mev_flood_seconds_per_bundle"
             ],
+            use_mev_plus=result["mev_params"]["use_mev_plus"],
+            use_mev_boost=result["mev_params"]["use_mev_boost"],
+        ),
+        mev_plus_params=struct(
+            mev_plus_image=result["mev_plus_params"]["mev_plus_image"],
+            mev_plus_flags=result["mev_plus_params"]["mev_plus_flags"],
         ),
         tx_spammer_params=struct(
             tx_spammer_extra_args=result["tx_spammer_params"]["tx_spammer_extra_args"],
@@ -221,6 +232,22 @@ def input_parser(plan, input_args):
         disable_peer_scoring=result["disable_peer_scoring"],
     )
 
+def parse_mev_plus_params(input_args):
+    result = {}
+    flags = {}
+    for attr in input_args:
+        if attr == "mev_plus_params":
+            for sub_attr in input_args["mev_plus_params"]:
+                if sub_attr == "mev_plus_image":
+                    result[sub_attr] = input_args["mev_plus_params"][sub_attr]
+                elif sub_attr == "mev_plus_modules":
+                    for mev_plus_module in input_args["mev_plus_params"]["mev_plus_modules"]:
+                        for module_flag in input_args["mev_plus_params"]["mev_plus_modules"][mev_plus_module]:
+                            flags["{0}.{1}".format(mev_plus_module, module_flag)] = input_args["mev_plus_params"]["mev_plus_modules"][mev_plus_module][module_flag]
+                else:
+                    fail("mev_plus_params has an invalid attribute: {0}".format(sub_attr))
+    result["mev_plus_flags"] = flags
+    return result
 
 def parse_network_params(input_args):
     result = default_input_args()
@@ -448,7 +475,6 @@ def get_default_mev_params():
         "mev_builder_image": "flashbots/builder:latest",
         "mev_builder_cl_image": "sigp/lighthouse:latest",
         "mev_boost_image": "flashbots/mev-boost",
-        "mev_plus_image": "pon-network/mev-plus",
         "mev_relay_api_extra_args": [],
         "mev_relay_housekeeper_extra_args": [],
         "mev_relay_website_extra_args": [],
@@ -460,6 +486,8 @@ def get_default_mev_params():
             "scrape_interval": "15s",
             "labels": None,
         },
+        "use_mev_plus": False,
+        "use_mev_boost": True,
     }
 
 
