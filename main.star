@@ -60,6 +60,7 @@ def run(plan, args={}):
     num_participants = len(args_with_right_defaults.participants)
     network_params = args_with_right_defaults.network_params
     mev_params = args_with_right_defaults.mev_params
+    plus_params = args_with_right_defaults.plus_params
     parallel_keystore_generation = args_with_right_defaults.parallel_keystore_generation
 
     grafana_datasource_config_template = read_file(
@@ -240,23 +241,44 @@ def run(plan, args={}):
 
     # spin up the mev boost contexts if some endpoints for relays have been passed
     all_mevboost_contexts = []
+    all_plus_contexts = []
     if mev_endpoints:
-        for index, participant in enumerate(all_participants):
+        if mev_params.mev_boost:
+            for index, participant in enumerate(all_participants):
+                if args_with_right_defaults.participants[index].validator_count != 0:
+                    mev_boost_launcher = mev_boost.new_mev_boost_launcher(
+                        MEV_BOOST_SHOULD_CHECK_RELAY, mev_endpoints
+                    )
+                    mev_boost_service_name = "{0}{1}".format(
+                        input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index
+                    )
+                    mev_boost_context = mev_boost.launch(
+                        plan,
+                        mev_boost_launcher,
+                        mev_boost_service_name,
+                        network_params.network_id,
+                        mev_params.mev_boost_image,
+                    )
+                    all_mevboost_contexts.append(mev_boost_context)
+        elif mev_params.mev_plus:
             if args_with_right_defaults.participants[index].validator_count != 0:
-                mev_boost_launcher = mev_boost.new_mev_boost_launcher(
-                    MEV_BOOST_SHOULD_CHECK_RELAY, mev_endpoints
-                )
-                mev_boost_service_name = "{0}{1}".format(
-                    input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index
-                )
-                mev_boost_context = mev_boost.launch(
-                    plan,
-                    mev_boost_launcher,
-                    mev_boost_service_name,
-                    network_params.network_id,
-                    mev_params.mev_boost_image,
-                )
-                all_mevboost_contexts.append(mev_boost_context)
+                        mev_plus_launcher = mev_plus.new_mev_plus_launcher(
+                            MEV_PLUS_SHOULD_CHECK_RELAY, mev_endpoints
+                        )
+                        mev_plus_service_name = "{0}{1}".format(
+                            input_parser.MEV_PLUS_SERVICE_NAME_PREFIX, index
+                        )
+                        mev_plus_context = mev_plus.launch(
+                            plan,
+                            mev_plus_launcher,
+                            mev_plus_service_name,
+                            network_params.network_id,
+                            mev_params.mev_plus_image,
+                        )
+                        all_plus_contexts.append(mev_boost_context)
+        else:
+            print("No mev boost or mev plus params passed")
+        # throw error as there is no proxy software set to handle the mev relay endpoints for validators
     
     # configure the MEV Plus contexts if some MEV Plus configs have been passed
     # TODO: Ronny

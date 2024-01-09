@@ -71,4 +71,9 @@ mev_params:
   mev_flood_image: flashbots/mev-flood
   mev_flood_extra_args: []
   mev_flood_seconds_per_bundle: 15
+  mev_plus: true
+  mev_boost: false
+plus_params:
+  external-validator-proxy:
+    address: localhost:18891
 grafana_additional_dashboards: []

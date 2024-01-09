@@ -64,6 +64,7 @@ def input_parser(plan, input_args):
     # add default eth2 input params
     result["mev_type"] = None
     result["mev_params"] = get_default_mev_params()
+    result["plus_params"] = {} # Plus already has default values configured in teh software, and is modular so dont set defaults here unless set by user
     result["additional_services"] = DEFAULT_ADDITIONAL_SERVICES
     result["grafana_additional_dashboards"] = []
     result["tx_spammer_params"] = get_default_tx_spammer_params()
@@ -80,6 +81,10 @@ def input_parser(plan, input_args):
             for sub_attr in input_args["mev_params"]:
                 sub_value = input_args["mev_params"][sub_attr]
                 result["mev_params"][sub_attr] = sub_value
+        elif attr == "plus_params":
+            for sub_attr in input_args["plus_params"]:
+                sub_value = input_args["plus_params"][sub_attr]
+                result["plus_params"][sub_attr] = sub_value
         elif attr == "tx_spammer_params":
             for sub_attr in input_args["tx_spammer_params"]:
                 sub_value = input_args["tx_spammer_params"][sub_attr]
