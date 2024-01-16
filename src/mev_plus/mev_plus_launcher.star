@@ -21,7 +21,7 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
         "builderApi.listen-address": shared_utils.new_port_spec(
             input_parser.MEV_PLUS_BUILDER_API_PORT,
             MEV_PLUS_PROTOCOL,
-            wait = "10m",
+            wait = "2m",
         ),
     }
 
@@ -30,14 +30,17 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
     # Set network params for default modules
     command.append("-blockAggregator.slot-duration")
     command.append(str(network_params.seconds_per_slot))
-    command.append("-relay.genesis-fork-version")
-    command.append("0x10000038")
 
-    if mev_plus_launcher.should_check_relay:
+    if mev_plus_launcher.relay_end_points:
+        command.append("-relay.genesis-fork-version")
+        command.append("0x10000038")
+
+    if mev_plus_launcher.should_check_relay and mev_plus_launcher.relay_end_points:
         command.append("-relay.relay-check")
 
     # Since in the ethereum-package testnet we use custom network configs the signature domains may not match, however we are sure the payload is securely from a connected relay
-    command.append("-relay.skip-relay-signature-check")
+    if mev_plus_launcher.relay_end_points:
+        command.append("-relay.skip-relay-signature-check")
 
     if mev_plus_launcher.external_validator_proxy_address:
         command.append("-externalValidatorProxy.address")
@@ -67,7 +70,7 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
                 used_ports[flag] = shared_utils.new_port_spec(
                     shared_utils.get_port_from_url(value),
                     MEV_PLUS_PROTOCOL,
-                    wait = "5s",
+                    wait = "2m",
                 )
 
     return ServiceConfig(
