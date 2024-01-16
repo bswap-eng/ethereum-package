@@ -98,15 +98,10 @@ def input_parser(plan, input_args):
         result = enrich_disable_peer_scoring(result)
 
     if result.get("mev_type") in ("mock", "full"):
-        service_prefix = MEV_BOOST_SERVICE_NAME_PREFIX
-        port = FLASHBOTS_MEV_BOOST_PORT
-        if result["mev_params"].get("use_mev_plus", False):
-            service_prefix = MEV_PLUS_SERVICE_NAME_PREFIX
-            port = MEV_PLUS_BUILDER_API_PORT
         result = enrich_mev_extra_params(
             result,
-            service_prefix,
-            port,
+            MEV_PLUS_SERVICE_NAME_PREFIX,
+            MEV_PLUS_BUILDER_API_PORT,
             result.get("mev_type"),
         )
 
