@@ -72,13 +72,13 @@ mev_params:
   mev_flood_extra_args: []
   mev_flood_seconds_per_bundle: 15
   # use either mev_plus or mev_boost, not both for MEV operations, this defaults to using mev_boost if not specified in this file
-  use_mev_plus: true
-  use_mev_boost: false
+  use_mev_plus: false
+  use_mev_boost: true
 mev_plus_params:
   mev_plus_image: mev-plus:latest
   mev_plus_modules:
     externalValidatorProxy: # MEV Plus module name
       logger-level: debug # MEV Plus module flag
-    k2:
-      listen-address: localhost:9000
+    # k2:
+    #   listen-address: localhost:9000
 grafana_additional_dashboards: []

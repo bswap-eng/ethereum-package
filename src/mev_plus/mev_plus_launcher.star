@@ -1,6 +1,6 @@
 shared_utils = import_module("../shared_utils/shared_utils.star")
 mev_plus_context_module = import_module("../mev_plus/mev_plus_context.star")
-mev_boost_context_module = import_module("../mev_plus/mev_plus_context.star")
+mev_boost_context_module = import_module("../mev_boost/mev_boost_context.star")
 input_parser = import_module("../package_io/input_parser.star")
 
 MEV_PLUS_PROTOCOL = "TCP"
@@ -17,12 +17,11 @@ def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image
     )
 
 def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags):
-    
     used_ports = {
         "builderApi.listen-address": shared_utils.new_port_spec(
             input_parser.MEV_PLUS_BUILDER_API_PORT,
             MEV_PLUS_PROTOCOL,
-            wait = "5s",
+            wait = "10m",
         ),
     }
 
@@ -74,7 +73,11 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
     return ServiceConfig(
         image = mev_plus_image,
         ports = used_ports,
-        cmd = command,
+        entrypoint = [
+            "bash",
+            "-c",
+            " ".join(command),
+        ],
         env_vars = {
             "BUILDERAPI_LISTEN_ADDRESS": "0.0.0.0:{0}".format(
                 input_parser.MEV_PLUS_BUILDER_API_PORT,
