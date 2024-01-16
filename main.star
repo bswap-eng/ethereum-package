@@ -158,11 +158,13 @@ def run(plan, args={}):
         and participant.builder_network_params != None
     ):
         mev_endpoints = participant.builder_network_params.relay_end_points
+        plan.print("Using external relays: {0}".format(mev_endpoints))
     # otherwise dummy relays spinup if chosen
     elif (
         args_with_right_defaults.mev_type
         and args_with_right_defaults.mev_type == MOCK_MEV_TYPE
     ):
+        plan.print("Launching mock mev")
         el_uri = "{0}:{1}".format(
             all_el_client_contexts[0].ip_addr,
             all_el_client_contexts[0].engine_rpc_port_num,
@@ -188,6 +190,7 @@ def run(plan, args={}):
         args_with_right_defaults.mev_type
         and args_with_right_defaults.mev_type == FULL_MEV_TYPE
     ):
+        plan.print("Launching full mev")
         builder_uri = "http://{0}:{1}".format(
             all_el_client_contexts[-1].ip_addr, all_el_client_contexts[-1].rpc_port_num
         )
@@ -241,27 +244,10 @@ def run(plan, args={}):
         mev_endpoints.append(endpoint)
 
     # Spinning up validator proxy softwares
-    all_mevplus_contexts = []
-    all_mevboost_contexts = []
-
-    # Always boot up MEV Plus as the primary validator proxy software, and attach MEV as external to Plus if set for use
-    for index, participant in enumerate(all_participants):
-        if args_with_right_defaults.participants[index].validator_count != 0:
-            # Create mev plus launcher and set it to connect to the mev relay endpoints if it is to be used for MEV operations
-            mev_plus_launcher = mev_plus.new_mev_plus_launcher(
-                MEV_PLUS_SHOULD_CHECK_RELAY, (mev_endpoints if mev_params.use_mev_plus else [])
-            )
-            mev_plus_service_name = "{0}{1}".format(
-                input_parser.MEV_PLUS_SERVICE_NAME_PREFIX, index
-            )
-            mev_plus_context = mev_plus.launch(
-                plan,
-                mev_plus_launcher,
-                mev_plus_service_name,
-                network_params.network_id,
-                mev_params.mev_plus_image,
-            )
-            all_mev_plus_contexts.append(mev_plus_context)
+    proxy_software_contexts = {
+        "mev_plus": {},
+        "mev_boost": {},
+    }
 
     # spin up the mev boost contexts if some endpoints for relays have been passed and mev boost is set to be used for MEV operations
     if mev_endpoints and mev_params.use_mev_boost:
@@ -280,28 +266,34 @@ def run(plan, args={}):
                         network_params.network_id,
                         mev_params.mev_boost_image,
                     )
-                    all_mevboost_contexts.append(mev_boost_context)
+                    proxy_software_contexts["mev_boost"][mev_boost_service_name] = mev_boost_context
     
-    # If mev boost has been set to be used for MEV operations, then we need to connect it to the MEV Plus contexts as an external validator proxy software
-    # MEV Plus would not be connecting to the relays directly and would serve the validator clients through MEV Boost for MEV operations
-    if mev_params.use_mev_boost:
-        for index, participant in enumerate(all_participants):
-            if args_with_right_defaults.participants[index].validator_count != 0:
-                mev_plus_service_name = "{0}{1}".format(
-                    input_parser.MEV_PLUS_SERVICE_NAME_PREFIX, index
-                )
-                mev_boost_service_name = "{0}{1}".format(
-                    input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index
-                )
-                mev_plus_context = all_mev_plus_contexts[index]
-                mev_boost_context = all_mevboost_contexts[index]
-                mev_plus.connect_mev_plus_to_mev_boost(
-                    plan,
-                    mev_plus_context,
-                    mev_boost_context,
-                    mev_plus_service_name,
-                    mev_boost_service_name,
-                )
+    # Always boot up MEV Plus as the primary validator proxy software, and attach MEV as external to Plus if set for use
+    for index, participant in enumerate(all_participants):
+        if args_with_right_defaults.participants[index].validator_count != 0:
+            # Create mev plus launcher and set it to connect to the mev relay endpoints if it is to be used for MEV operations
+            # If mev boost has been set to be used for MEV operations, then we need to connect it to the MEV Plus contexts as an external validator proxy software
+            # MEV Plus would not be connecting to the relays directly and would serve the validator clients through MEV Boost for MEV operations
+    
+            mev_plus_launcher = mev_plus.new_mev_plus_launcher(
+                MEV_PLUS_SHOULD_CHECK_RELAY, 
+                (mev_endpoints if mev_params.use_mev_plus else []),
+                (proxy_software_contexts["mev_boost"].get(
+                    "{0}{1}".format(input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index)
+                ) if mev_params.use_mev_boost else None)
+            )
+            mev_plus_service_name = "{0}{1}".format(
+                input_parser.MEV_PLUS_SERVICE_NAME_PREFIX, index
+            )
+            mev_plus_context = mev_plus.launch(
+                plan,
+                mev_plus_launcher,
+                mev_plus_service_name,
+                network_params,
+                mev_plus_params.mev_plus_image,
+                mev_plus_params.mev_plus_flags,
+            )
+            proxy_software_contexts["mev_plus"][mev_plus_service_name] = mev_plus_context
 
     if len(args_with_right_defaults.additional_services) == 0:
         output = struct(

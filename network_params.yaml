@@ -58,7 +58,7 @@ global_client_log_level: info
 snooper_enabled: false
 ethereum_metrics_exporter_enabled: false
 parallel_keystore_generation: false
-mev_type: null
+mev_type: "full"
 mev_params:
   mev_relay_image: flashbots/mev-boost-relay
   mev_relay_api_extra_args: []
@@ -75,8 +75,10 @@ mev_params:
   use_mev_plus: true
   use_mev_boost: false
 mev_plus_params:
-  mev_plus_image: mev-plus:local
+  mev_plus_image: mev-plus:latest
   mev_plus_modules:
-    external-validator-proxy: # MEV Plus module name
-      address: localhost:18891 # MEV Plus module flag
+    externalValidatorProxy: # MEV Plus module name
+      logger-level: debug # MEV Plus module flag
+    k2:
+      listen-address: localhost:9000
 grafana_additional_dashboards: []

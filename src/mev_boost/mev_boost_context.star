@@ -1,7 +1,8 @@
-def new_mev_boost_context(private_ip_address, port):
+def new_mev_boost_context(private_ip_address, port, service_name):
     return struct(
         private_ip_address=private_ip_address,
         port=port,
+        service_name=service_name,
     )
 
 

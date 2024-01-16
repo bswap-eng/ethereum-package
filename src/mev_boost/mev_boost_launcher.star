@@ -23,7 +23,7 @@ def launch(plan, mev_boost_launcher, service_name, network_id, mev_boost_image):
     mev_boost_service = plan.add_service(service_name, config)
 
     return mev_boost_context_module.new_mev_boost_context(
-        mev_boost_service.ip_address, input_parser.FLASHBOTS_MEV_BOOST_PORT
+        mev_boost_service.ip_address, input_parser.FLASHBOTS_MEV_BOOST_PORT, service_name
     )
 
 
