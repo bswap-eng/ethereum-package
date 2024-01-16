@@ -5,14 +5,6 @@ input_parser = import_module("../package_io/input_parser.star")
 
 MEV_PLUS_PROTOCOL = "TCP"
 
-USED_PORTS = {
-    "builderApi.listen-address": shared_utils.new_port_spec(
-        input_parser.MEV_PLUS_BUILDER_API_PORT,
-        MEV_PLUS_PROTOCOL,
-        wait = "5s",
-    ),
-}
-
 def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image, mev_plus_flags):
     config = get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags)
 
@@ -25,6 +17,15 @@ def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image
     )
 
 def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags):
+    
+    used_ports = {
+        "builderApi.listen-address": shared_utils.new_port_spec(
+            input_parser.MEV_PLUS_BUILDER_API_PORT,
+            MEV_PLUS_PROTOCOL,
+            wait = "5s",
+        ),
+    }
+
     command = ["mevPlus"]
 
     # Set network params for default modules
@@ -64,7 +65,7 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
 
             if shared_utils.is_url(value):
                 # If the value is a url, add it to the list of ports to wait for
-                USED_PORTS[flag] = shared_utils.new_port_spec(
+                used_ports[flag] = shared_utils.new_port_spec(
                     shared_utils.get_port_from_url(value),
                     MEV_PLUS_PROTOCOL,
                     wait = "5s",
@@ -72,7 +73,7 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
 
     return ServiceConfig(
         image = mev_plus_image,
-        ports = USED_PORTS,
+        ports = used_ports,
         cmd = command,
         env_vars = {
             "BUILDERAPI_LISTEN_ADDRESS": "0.0.0.0:{0}".format(
