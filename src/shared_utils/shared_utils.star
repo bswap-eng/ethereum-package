@@ -107,6 +107,7 @@ def is_url(input_string):
 
     # Check if the string resembles an IP address
     # First remove the port if present
+    check_string = input_string
     if ":" in input_string:
         check_string = input_string.split(":")[0]
     parts = check_string.split(".")
