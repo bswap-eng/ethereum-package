@@ -113,13 +113,16 @@ def input_parser(plan, input_args):
     if result.get("disable_peer_scoring"):
         result = enrich_disable_peer_scoring(result)
 
-    if result.get("mev_type") in ("mock", "full"):
-        result = enrich_mev_extra_params(
-            result,
-            MEV_PLUS_SERVICE_NAME_PREFIX,
-            MEV_PLUS_BUILDER_API_PORT,
-            result.get("mev_type"),
-        )
+    # Always enable builder api on nodes to allow for MEV Plus to connect for any other additional module services
+    # Builder status registration endpoint would be fired but no blocks delivered externally from a relay,
+    # Some modules may present on-chain solutions that may not require a relay, or execute other actions on these events
+    # Regardless if no block is delivereed all nodes would still operate as normal using their local blocks
+    result = enrich_mev_extra_params(
+        result,
+        MEV_PLUS_SERVICE_NAME_PREFIX,
+        MEV_PLUS_BUILDER_API_PORT,
+        result.get("mev_type"),
+    )
 
     if (
         result.get("mev_type") == "full"
