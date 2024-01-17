@@ -31,6 +31,8 @@ participants:
     prometheus_config:
       scrape_interval: 15s
       labels: {}
+    blobber_enabled: false
+    blobber_extra_params: []
 network_params:
   network_id: "3151908"
   deposit_contract_address: "0x4242424242424242424242424242424242424242"
@@ -40,6 +42,7 @@ network_params:
     "giant issue aisle success illegal bike spike
     question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy
     very lucky have athlete"
+  preregistered_validator_count: 0
   genesis_delay: 120
   max_churn: 8
   ejection_balance: 16000000000
@@ -82,3 +85,4 @@ mev_plus_params:
     # k2:
     #   listen-address: localhost:9000
 grafana_additional_dashboards: []
+persistent: false

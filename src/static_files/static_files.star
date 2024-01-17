@@ -11,11 +11,6 @@ EL_FORKMON_CONFIG_TEMPLATE_FILEPATH = (
     STATIC_FILES_DIRPATH + "/el-forkmon-config/config.toml.tmpl"
 )
 
-# Prometheus config
-PROMETHEUS_CONFIG_TEMPLATE_FILEPATH = (
-    STATIC_FILES_DIRPATH + "/prometheus-config/prometheus.yml.tmpl"
-)
-
 # Validator Ranges config
 VALIDATOR_RANGES_CONFIG_TEMPLATE_FILEPATH = (
     STATIC_FILES_DIRPATH + "/validator-ranges/config.yaml.tmpl"
@@ -25,6 +20,15 @@ DORA_CONFIG_TEMPLATE_FILEPATH = STATIC_FILES_DIRPATH + "/dora-config/config.yaml
 
 FULL_BEACONCHAIN_CONFIG_TEMPLATE_FILEPATH = (
     STATIC_FILES_DIRPATH + "/full-beaconchain-config/config.yaml.tmpl"
+)
+
+# assertoor config
+ASSERTOOR_CONFIG_DIRPATH = "/assertoor-config"
+ASSERTOOR_CONFIG_TEMPLATE_FILEPATH = (
+    STATIC_FILES_DIRPATH + ASSERTOOR_CONFIG_DIRPATH + "/config.yaml.tmpl"
+)
+ASSERTOOR_TESTS_CONFIG_DIRPATH = (
+    STATIC_FILES_DIRPATH + ASSERTOOR_CONFIG_DIRPATH + "/tests"
 )
 
 # Grafana config
@@ -56,3 +60,5 @@ CL_GENESIS_GENERATION_CONFIG_TEMPLATE_FILEPATH = (
 CL_GENESIS_GENERATION_MNEMONICS_TEMPLATE_FILEPATH = (
     CL_GENESIS_GENERATION_CONFIG_DIRPATH + "/mnemonics.yaml.tmpl"
 )
+
+JWT_PATH_FILEPATH = STATIC_FILES_DIRPATH + "/jwt/jwtsecret"

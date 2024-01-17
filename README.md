@@ -4,6 +4,8 @@
 
 This is a [Kurtosis][kurtosis-repo] package that will spin up a private Ethereum testnet over Docker or Kubernetes with multi-client support, Flashbot's `mev-boost` infrastructure for PBS-related testing/validation, and other useful network tools (transaction spammer, monitoring tools, etc). Additionally this package includes BlockSwap's `mev-plus` infrastructure also available for PBS-related testing/validation as well as many other on-chain and of-chain composable sidecar ecosystems for validator applications. Kurtosis packages are entirely reproducible and composable, so this will work the same way over Docker or Kubernetes, in the cloud or locally on your machine.
 
+You now have the ability to spin up a private Ethereum testnet or public devnet/testnet (e.g. Goerli, Holesky, Sepolia, dencun-devnet-12, verkle-gen-devnet-2 etc) with a single command. This package is designed to be used for testing, validation, and development of Ethereum clients, and is not intended for production use. For more details check network_params.network in the [configuration section](./README.md#configuration).
+
 Specifically, this [package][package-reference] will:
 
 1. Generate Execution Layer (EL) & Consensus Layer (CL) genesis information using [the Ethereum genesis generator](https://github.com/ethpandaops/ethereum-genesis-generator).
@@ -49,6 +51,20 @@ Where `network_params.yaml` contains the parameters for your network in your hom
 #### Run on Kubernetes
 
 Kurtosis packages work the same way over Docker or on Kubernetes. Please visit our [Kubernetes docs](https://docs.kurtosis.com/k8s) to learn how to spin up a private testnet on a Kubernetes cluster.
+
+#### Considerations for Running on a Public Testnet with a Cloud Provider
+
+When running on a public testnet using a cloud provider's Kubernetes cluster, there are a few important factors to consider:
+
+1. State Growth: The growth of the state might be faster than anticipated. This could potentially lead to issues if the default parameters become insufficient over time. It's important to monitor state growth and adjust parameters as necessary.
+
+2. Persistent Storage Speed: Most cloud providers provision their Kubernetes clusters with relatively slow persistent storage by default. This can cause performance issues, particularly with Ethereum Light (EL) clients.
+
+3. Network Syncing: The disk speed provided by cloud providers may not be sufficient to sync with networks that have high demands, such as the mainnet. This could lead to syncing issues and delays.
+
+To mitigate these issues, you can use the `el_client_volume_size` and `cl_client_volume_size` flags to override the default settings locally. This allows you to allocate more storage to the EL and CL clients, which can help accommodate faster state growth and improve syncing performance. However, keep in mind that increasing the volume size may also increase your cloud provider costs. Always monitor your usage and adjust as necessary to balance performance and cost.
+
+For optimal performance, we recommend using a cloud provider that allows you to provision Kubernetes clusters with fast persistent storage or self hosting your own Kubernetes cluster with fast persistent storage.
 
 #### Tear down
 
@@ -124,6 +140,11 @@ participants:
   # A list of optional extra env_vars the el container should spin up with
   el_extra_env_vars: {}
 
+  # Persistent storage size for the EL client container (in MB)
+  # Defaults to 0, which means that the default size for the client will be used
+  # Default values can be found in /src/package_io/constants.star VOLUME_SIZE
+  el_client_volume_size: 0
+
   # A list of optional extra labels the el container should spin up with
   # Example; el_extra_labels: {"ethereum-package.partition": "1"}
   el_extra_labels: {}
@@ -147,6 +168,17 @@ participants:
   # If this is not emptystring, then this value will override the global `logLevel` setting to allow for fine-grained control
   # over a specific participant's logging
   cl_client_log_level: ""
+
+  # A list of optional extra params that will be passed to the CL to run separate Beacon and validator nodes
+  # Only possible for nimbus or teku
+  # Please note that in order to get it to work with Nimbus, you have to use `ethpandaops/nimbus:unstable` as the image (default upstream image does not yet support this out of the box)
+  # Defaults to false
+  cl_split_mode_enabled: false
+
+  # Persistent storage size for the CL client container (in MB)
+  # Defaults to 0, which means that the default size for the client will be used
+  # Default values can be found in /src/package_io/constants.star VOLUME_SIZE
+  cl_client_volume_size: 0
 
   # A list of optional extra params that will be passed to the CL client Beacon container for modifying its behaviour
   # If the client combines the Beacon & validator nodes (e.g. Teku, Nimbus), then this list will be passed to the combined Beacon-validator node
@@ -219,6 +251,14 @@ participants:
     # Additional labels to be added. Default to empty
     labels: {}
 
+  # Blobber can be enabled with the `blobber_enabled` flag per client or globally
+  # Defaults to false
+  blobber_enabled: false
+
+  # Blobber extra params can be passed in to the blobber container
+  # Defaults to empty
+  blobber_extra_params: []
+
 # Default configuration parameters for the Eth network
 network_params:
   # The network ID of the network.
@@ -236,6 +276,8 @@ network_params:
   # This mnemonic will a) be used to create keystores for all the types of validators that we have and b) be used to generate a CL genesis.ssz that has the children
   # validator keys already preregistered as validators
   preregistered_validator_keys_mnemonic: "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
+  # The number of pre-registered validators for genesis. If 0 or not specified then the value will be calculated from the participants
+  preregistered_validator_count: 0
   # How long you want the network to wait before starting up
   genesis_delay: 120
 
@@ -249,10 +291,20 @@ network_params:
   # 16000000000 gwei
   ejection_balance: 16000000000,
 
+  # ETH1 follow distance
+  # Defaults to 2048
+  eth1_follow_distance: 2048
+
   # The epoch at which the capella and deneb forks are set to occur.
   capella_fork_epoch: 0
   deneb_fork_epoch: 500
   electra_fork_epoch: null
+
+  # Network name, used to enable syncing of alternative networks
+  # Defaults to "kurtosis"
+  # You can sync any public network by setting this to the network name (e.g. "mainnet", "goerli", "sepolia", "holesky")
+  # You can sync any devnet by setting this to the network name (e.g. "dencun-devnet-12", "verkle-gen-devnet-2")
+  network: "kurtosis"
 
 # Configuration place for transaction spammer - https:#github.com/MariusVanDerWijden/tx-fuzz
 tx_spammer_params:
@@ -264,6 +316,62 @@ goomy_blob_params:
   # A list of optional params that will be passed to the blob-spammer comamnd for modifying its behaviour
   goomy_blob_args: []
 
+# Configuration place for the assertoor testing tool - https:#github.com/ethpandaops/assertoor
+assertoor_params:
+  # Check chain stability
+  # This check monitors the chain and succeeds if:
+  # - all clients are synced
+  # - chain is finalizing for min. 2 epochs
+  # - >= 98% correct target votes
+  # - >= 80% correct head votes
+  # - no reorgs with distance > 2 blocks
+  # - no more than 2 reorgs per epoch
+  run_stability_check: true
+
+  # Check block propöosals
+  # This check monitors the chain and succeeds if:
+  # - all client pairs have proposed a block
+  run_block_proposal_check: true
+
+  # Run normal transaction test
+  # This test generates random EOA transactions and checks inclusion with/from all client pairs
+  # This test checks for:
+  # - block proposals with transactions from all client pairs
+  # - transaction inclusion when submitting via each client pair
+  # test is done twice, first with legacy (type 0) transactions, then with dynfee (type 2) transactions
+  run_transaction_test: false
+
+  # Run blob transaction test
+  # This test generates blob transactions and checks inclusion with/from all client pairs
+  # This test checks for:
+  # - block proposals with blobs from all client pairs
+  # - blob inclusion when submitting via each client pair
+  run_blob_transaction_test: false
+
+  # Run all-opcodes transaction test
+  # This test generates a transaction that triggers all EVM OPCODES once
+  # This test checks for:
+  # - all-opcodes transaction success
+  run_opcodes_transaction_test: false
+
+  # Run validator lifecycle test (~48h to complete)
+  # This test requires exactly 500 active validator keys.
+  # The test will cause a temporary chain unfinality when running.
+  # This test checks:
+  # - Deposit inclusion with/from all client pairs
+  # - BLS Change inclusion with/from all client pairs
+  # - Voluntary Exit inclusion with/from all client pairs
+  # - Attester Slashing inclusion with/from all client pairs
+  # - Proposer Slashing inclusion with/from all client pairs
+  # all checks are done during finality & unfinality
+  run_lifecycle_test: false
+
+  # Run additional tests from external test definitions
+  # eg:
+  #   - https://raw.githubusercontent.com/ethpandaops/assertoor/master/example/tests/block-proposal-check.yaml
+  tests: []
+
+
 # By default includes
 # - A transaction spammer & blob spammer is launched to fake transactions sent to the network
 # - Forkmon for EL will be launched
@@ -272,6 +380,7 @@ goomy_blob_params:
 # - A light beacon chain explorer will be launched
 # - Default: ["tx_spammer", "blob_spammer", "el_forkmon", "beacon_metrics_gazer", "dora"," "prometheus_grafana"]
 additional_services:
+  - assertoor
   - broadcaster
   - tx_spammer
   - blob_spammer
@@ -310,6 +419,12 @@ disable_peer_scoring: false
 
 # A list of locators for grafana dashboards to be loaded be the grafana service
 grafana_additional_dashboards: []
+
+# Whether the environment should be persistent; this is WIP and is slowly being rolled out accross services
+# Note this requires Kurtosis greater than 0.85.49 to work
+# Note Erigon, Besu, Teku persistence is not currently supported with docker.
+# Defaults to false
+persistent: false
 
 # Supports three valeus
 # Default: "null" - no mev boost, mev builder, mev flood or relays are spun up
@@ -551,6 +666,7 @@ Here's a table of where the keys are used
 | 5             | eip4788_deployment  | ✅                |                 | As contract deployer       |
 | 6             | mev_flood           | ✅                |                 | As the contract owner      |
 | 7             | mev_flood           | ✅                |                 | As the user_key            |
+| 8             | assertoor           | ✅                | ✅              | As the funding for tests   |
 | 11            | mev_custom_flood    | ✅                |                 | As the sender of balance   |
 
 ## Developing On This Package

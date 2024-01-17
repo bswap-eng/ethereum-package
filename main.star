@@ -1,44 +1,45 @@
 input_parser = import_module("./src/package_io/input_parser.star")
 constants = import_module("./src/package_io/constants.star")
 participant_network = import_module("./src/participant_network.star")
-
+shared_utils = import_module("./src/shared_utils/shared_utils.star")
 static_files = import_module("./src/static_files/static_files.star")
 genesis_constants = import_module(
-    "./src/prelaunch_data_generator/genesis_constants/genesis_constants.star"
+    "./src/prelaunch_data_generator/genesis_constants/genesis_constants.star",
 )
 
 validator_ranges = import_module(
-    "./src/prelaunch_data_generator/validator_keystores/validator_ranges_generator.star"
+    "./src/prelaunch_data_generator/validator_keystores/validator_ranges_generator.star",
 )
 
 transaction_spammer = import_module(
-    "./src/transaction_spammer/transaction_spammer.star"
+    "./src/transaction_spammer/transaction_spammer.star",
 )
 blob_spammer = import_module("./src/blob_spammer/blob_spammer.star")
 goomy_blob = import_module("./src/goomy_blob/goomy_blob.star")
 el_forkmon = import_module("./src/el_forkmon/el_forkmon_launcher.star")
 beacon_metrics_gazer = import_module(
-    "./src/beacon_metrics_gazer/beacon_metrics_gazer_launcher.star"
+    "./src/beacon_metrics_gazer/beacon_metrics_gazer_launcher.star",
 )
 dora = import_module("./src/dora/dora_launcher.star")
 blobscan = import_module("./src/blobscan/blobscan_launcher.star")
 full_beaconchain_explorer = import_module(
-    "./src/full_beaconchain/full_beaconchain_launcher.star"
+    "./src/full_beaconchain/full_beaconchain_launcher.star",
 )
 prometheus = import_module("./src/prometheus/prometheus_launcher.star")
 grafana = import_module("./src/grafana/grafana_launcher.star")
-mev_boost = import_module("./src/mev_boost/mev_boost_launcher.star")
-mev_plus = import_module("./src/mev_plus/mev_plus_launcher.star")
-mock_mev = import_module("./src/mock_mev/mock_mev_launcher.star")
-mev_relay = import_module("./src/mev_relay/mev_relay_launcher.star")
-mev_flood = import_module("./src/mev_flood/mev_flood_launcher.star")
+mev_boost = import_module("./src/mev/mev_boost/mev_boost_launcher.star")
+mev_plus = import_module("./src/mev/mev_plus/mev_plus_launcher.star")
+mock_mev = import_module("./src/mev/mock_mev/mock_mev_launcher.star")
+mev_relay = import_module("./src/mev/mev_relay/mev_relay_launcher.star")
+mev_flood = import_module("./src/mev/mev_flood/mev_flood_launcher.star")
 mev_custom_flood = import_module(
-    "./src/mev_custom_flood/mev_custom_flood_launcher.star"
+    "./src/mev/mev_custom_flood/mev_custom_flood_launcher.star",
 )
 eip4788_deployment = import_module(
-    "./src/eip4788_deployment/eip4788_deployment_launcher.star"
+    "./src/eip4788_deployment/eip4788_deployment_launcher.star",
 )
 broadcaster = import_module("./src/broadcaster/broadcaster.star")
+assertoor = import_module("./src/assertoor/assertoor_launcher.star")
 
 GRAFANA_USER = "admin"
 GRAFANA_PASSWORD = "admin"
@@ -53,9 +54,7 @@ MOCK_MEV_TYPE = "mock"
 FULL_MEV_TYPE = "full"
 PATH_TO_PARSED_BEACON_STATE = "/genesis/output/parsedBeaconState.json"
 
-
-def run(plan, args={}):
-
+def run(plan, args = {}):
     args_with_right_defaults = input_parser.input_parser(plan, args)
 
     num_participants = len(args_with_right_defaults.participants)
@@ -63,24 +62,28 @@ def run(plan, args={}):
     mev_params = args_with_right_defaults.mev_params
     mev_plus_params = args_with_right_defaults.mev_plus_params
     parallel_keystore_generation = args_with_right_defaults.parallel_keystore_generation
+    persistent = args_with_right_defaults.persistent
 
     grafana_datasource_config_template = read_file(
-        static_files.GRAFANA_DATASOURCE_CONFIG_TEMPLATE_FILEPATH
+        static_files.GRAFANA_DATASOURCE_CONFIG_TEMPLATE_FILEPATH,
     )
     grafana_dashboards_config_template = read_file(
-        static_files.GRAFANA_DASHBOARD_PROVIDERS_CONFIG_TEMPLATE_FILEPATH
-    )
-    prometheus_config_template = read_file(
-        static_files.PROMETHEUS_CONFIG_TEMPLATE_FILEPATH
+        static_files.GRAFANA_DASHBOARD_PROVIDERS_CONFIG_TEMPLATE_FILEPATH,
     )
     prometheus_additional_metrics_jobs = []
 
+    raw_jwt_secret = read_file(static_files.JWT_PATH_FILEPATH)
+    jwt_file = plan.upload_files(
+        src = static_files.JWT_PATH_FILEPATH,
+        name = "jwt_file",
+    )
     plan.print("Read the prometheus, grafana templates")
 
     plan.print(
         "Launching participant network with {0} participants and the following network params {1}".format(
-            num_participants, network_params
-        )
+            num_participants,
+            network_params,
+        ),
     )
     (
         all_participants,
@@ -92,6 +95,8 @@ def run(plan, args={}):
         args_with_right_defaults.participants,
         network_params,
         args_with_right_defaults.global_client_log_level,
+        jwt_file,
+        persistent,
         parallel_keystore_generation,
     )
 
@@ -99,7 +104,7 @@ def run(plan, args={}):
         "NODE JSON RPC URI: '{0}:{1}'".format(
             all_participants[0].el_client_context.ip_addr,
             all_participants[0].el_client_context.rpc_port_num,
-        )
+        ),
     )
 
     all_el_client_contexts = []
@@ -109,12 +114,12 @@ def run(plan, args={}):
         all_el_client_contexts.append(participant.el_client_context)
         all_cl_client_contexts.append(participant.cl_client_context)
         all_ethereum_metrics_exporter_contexts.append(
-            participant.ethereum_metrics_exporter_context
+            participant.ethereum_metrics_exporter_context,
         )
 
     # Generate validator ranges
     validator_ranges_config_template = read_file(
-        static_files.VALIDATOR_RANGES_CONFIG_TEMPLATE_FILEPATH
+        static_files.VALIDATOR_RANGES_CONFIG_TEMPLATE_FILEPATH,
     )
     ranges = validator_ranges.generate_validator_ranges(
         plan,
@@ -122,17 +127,18 @@ def run(plan, args={}):
         all_cl_client_contexts,
         args_with_right_defaults.participants,
     )
-
-    if network_params.deneb_fork_epoch != 0:
-        plan.print("Launching 4788 contract deployer")
-        el_uri = "http://{0}:{1}".format(
-            all_el_client_contexts[0].ip_addr, all_el_client_contexts[0].rpc_port_num
-        )
-        eip4788_deployment.deploy_eip4788_contract_in_background(
-            plan,
-            genesis_constants.PRE_FUNDED_ACCOUNTS[5].private_key,
-            el_uri,
-        )
+    if network_params.network == "kurtosis":
+        if network_params.deneb_fork_epoch != 0:
+            plan.print("Launching 4788 contract deployer")
+            el_uri = "http://{0}:{1}".format(
+                all_el_client_contexts[0].ip_addr,
+                all_el_client_contexts[0].rpc_port_num,
+            )
+            eip4788_deployment.deploy_eip4788_contract_in_background(
+                plan,
+                genesis_constants.PRE_FUNDED_ACCOUNTS[5].private_key,
+                el_uri,
+            )
 
     fuzz_target = "http://{0}:{1}".format(
         all_el_client_contexts[0].ip_addr,
@@ -143,7 +149,8 @@ def run(plan, args={}):
     if "broadcaster" in args_with_right_defaults.additional_services:
         args_with_right_defaults.additional_services.remove("broadcaster")
         broadcaster_service = broadcaster.launch_broadcaster(
-            plan, all_el_client_contexts
+            plan,
+            all_el_client_contexts,
         )
         fuzz_target = "http://{0}:{1}".format(
             broadcaster_service.ip_address,
@@ -151,54 +158,49 @@ def run(plan, args={}):
         )
 
     mev_endpoints = []
+
     # passed external relays get priority
     # perhaps add mev_type External or remove this
     if (
-        hasattr(participant, "builder_network_params")
-        and participant.builder_network_params != None
+        hasattr(participant, "builder_network_params") and
+        participant.builder_network_params != None
     ):
         mev_endpoints = participant.builder_network_params.relay_end_points
-        plan.print("Using external relays: {0}".format(mev_endpoints))
-    # otherwise dummy relays spinup if chosen
+        # otherwise dummy relays spinup if chosen
+
     elif (
-        args_with_right_defaults.mev_type
-        and args_with_right_defaults.mev_type == MOCK_MEV_TYPE
+        args_with_right_defaults.mev_type and
+        args_with_right_defaults.mev_type == MOCK_MEV_TYPE
     ):
-        plan.print("Launching mock mev")
         el_uri = "{0}:{1}".format(
             all_el_client_contexts[0].ip_addr,
             all_el_client_contexts[0].engine_rpc_port_num,
         )
         beacon_uri = "{0}:{1}".format(
-            all_cl_client_contexts[0].ip_addr, all_cl_client_contexts[0].http_port_num
-        )
-        jwt_secret = plan.run_sh(
-            run="cat " + constants.JWT_AUTH_PATH + " | tr -d '\n'",
-            image="busybox",
-            files={"/data": el_cl_data_files_artifact_uuid},
-            wait=None,
+            all_cl_client_contexts[0].ip_addr,
+            all_cl_client_contexts[0].http_port_num,
         )
         endpoint = mock_mev.launch_mock_mev(
             plan,
             el_uri,
             beacon_uri,
-            jwt_secret.output,
+            raw_jwt_secret,
             args_with_right_defaults.global_client_log_level,
         )
         mev_endpoints.append(endpoint)
     elif (
-        args_with_right_defaults.mev_type
-        and args_with_right_defaults.mev_type == FULL_MEV_TYPE
+        args_with_right_defaults.mev_type and
+        args_with_right_defaults.mev_type == FULL_MEV_TYPE
     ):
-        plan.print("Launching full mev")
         builder_uri = "http://{0}:{1}".format(
-            all_el_client_contexts[-1].ip_addr, all_el_client_contexts[-1].rpc_port_num
+            all_el_client_contexts[-1].ip_addr,
+            all_el_client_contexts[-1].rpc_port_num,
         )
         beacon_uris = ",".join(
             [
                 "http://{0}:{1}".format(context.ip_addr, context.http_port_num)
                 for context in all_cl_client_contexts
-            ]
+            ],
         )
 
         first_cl_client = all_cl_client_contexts[0]
@@ -212,17 +214,17 @@ def run(plan, args={}):
             normal_user.private_key,
         )
         epoch_recipe = GetHttpRequestRecipe(
-            endpoint="/eth/v2/beacon/blocks/head",
-            port_id=HTTP_PORT_ID_FOR_FACT,
-            extract={"epoch": ".data.message.body.attestations[0].data.target.epoch"},
+            endpoint = "/eth/v2/beacon/blocks/head",
+            port_id = HTTP_PORT_ID_FOR_FACT,
+            extract = {"epoch": ".data.message.body.attestations[0].data.target.epoch"},
         )
         plan.wait(
-            recipe=epoch_recipe,
-            field="extract.epoch",
-            assertion=">=",
-            target_value=str(network_params.capella_fork_epoch),
-            timeout="20m",
-            service_name=first_client_beacon_name,
+            recipe = epoch_recipe,
+            field = "extract.epoch",
+            assertion = ">=",
+            target_value = str(network_params.capella_fork_epoch),
+            timeout = "20m",
+            service_name = first_client_beacon_name,
         )
         endpoint = mev_relay.launch_mev_relay(
             plan,
@@ -232,6 +234,7 @@ def run(plan, args={}):
             genesis_validators_root,
             builder_uri,
             network_params.seconds_per_slot,
+            persistent,
         )
         mev_flood.spam_in_background(
             plan,
@@ -251,39 +254,54 @@ def run(plan, args={}):
 
     # spin up the mev boost contexts if some endpoints for relays have been passed and mev boost is set to be used for MEV operations
     if mev_endpoints and mev_params.use_mev_boost:
-            for index, participant in enumerate(all_participants):
-                if args_with_right_defaults.participants[index].validator_count != 0:
-                    mev_boost_launcher = mev_boost.new_mev_boost_launcher(
-                        MEV_BOOST_SHOULD_CHECK_RELAY, mev_endpoints
-                    )
-                    mev_boost_service_name = "{0}{1}".format(
-                        input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index
-                    )
-                    mev_boost_context = mev_boost.launch(
-                        plan,
-                        mev_boost_launcher,
-                        mev_boost_service_name,
-                        network_params.network_id,
-                        mev_params.mev_boost_image,
-                    )
-                    proxy_software_contexts["mev_boost"][mev_boost_service_name] = mev_boost_context
-    
+        for index, participant in enumerate(all_participants):
+            index_str = shared_utils.zfill_custom(
+                index + 1,
+                len(str(len(all_participants))),
+            )
+            if args_with_right_defaults.participants[index].validator_count != 0:
+                mev_boost_launcher = mev_boost.new_mev_boost_launcher(
+                    MEV_BOOST_SHOULD_CHECK_RELAY,
+                    mev_endpoints,
+                )
+                mev_boost_service_name = "{0}-{1}-{2}-{3}".format(
+                    input_parser.MEV_BOOST_SERVICE_NAME_PREFIX,
+                    index_str,
+                    participant.cl_client_type,
+                    participant.el_client_type,
+                )
+                mev_boost_context = mev_boost.launch(
+                    plan,
+                    mev_boost_launcher,
+                    mev_boost_service_name,
+                    network_params.network_id,
+                    mev_params.mev_boost_image,
+                )
+                proxy_software_contexts["mev_boost"][mev_boost_service_name] = mev_boost_context
+
     # Always boot up MEV Plus as the primary validator proxy software, and attach MEV as external to Plus if set for use
     for index, participant in enumerate(all_participants):
+        index_str = shared_utils.zfill_custom(
+            index + 1,
+            len(str(len(all_participants))),
+        )
         if args_with_right_defaults.participants[index].validator_count != 0:
             # Create mev plus launcher and set it to connect to the mev relay endpoints if it is to be used for MEV operations
             # If mev boost has been set to be used for MEV operations, then we need to connect it to the MEV Plus contexts as an external validator proxy software
             # MEV Plus would not be connecting to the relays directly and would serve the validator clients through MEV Boost for MEV operations
-    
+
             mev_plus_launcher = mev_plus.new_mev_plus_launcher(
-                MEV_PLUS_SHOULD_CHECK_RELAY, 
+                MEV_PLUS_SHOULD_CHECK_RELAY,
                 (mev_endpoints if mev_params.use_mev_plus else []),
                 (proxy_software_contexts["mev_boost"].get(
-                    "{0}{1}".format(input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index)
-                ) if mev_params.use_mev_boost else None)
+                    "{0}{1}".format(input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index),
+                ) if mev_params.use_mev_boost else None),
             )
-            mev_plus_service_name = "{0}{1}".format(
-                input_parser.MEV_PLUS_SERVICE_NAME_PREFIX, index
+            mev_plus_service_name = "{0}-{1}-{2}-{3}".format(
+                input_parser.MEV_PLUS_SERVICE_NAME_PREFIX,
+                index_str,
+                participant.cl_client_type,
+                participant.el_client_type,
             )
             mev_plus_context = mev_plus.launch(
                 plan,
@@ -297,9 +315,9 @@ def run(plan, args={}):
 
     if len(args_with_right_defaults.additional_services) == 0:
         output = struct(
-            all_participants=all_participants,
-            final_genesis_timestamp=final_genesis_timestamp,
-            genesis_validators_root=genesis_validators_root,
+            all_participants = all_participants,
+            final_genesis_timestamp = final_genesis_timestamp,
+            genesis_validators_root = genesis_validators_root,
         )
 
         return output
@@ -341,15 +359,18 @@ def run(plan, args={}):
                 goomy_blob_params,
             )
             plan.print("Successfully launched goomy the blob spammer")
-        # We need a way to do time.sleep
-        # TODO add code that waits for CL genesis
+            # We need a way to do time.sleep
+            # TODO add code that waits for CL genesis
+
         elif additional_service == "el_forkmon":
             plan.print("Launching el forkmon")
             el_forkmon_config_template = read_file(
-                static_files.EL_FORKMON_CONFIG_TEMPLATE_FILEPATH
+                static_files.EL_FORKMON_CONFIG_TEMPLATE_FILEPATH,
             )
             el_forkmon.launch_el_forkmon(
-                plan, el_forkmon_config_template, all_el_client_contexts
+                plan,
+                el_forkmon_config_template,
+                all_el_client_contexts,
             )
             plan.print("Successfully launched execution layer forkmon")
         elif additional_service == "beacon_metrics_gazer":
@@ -363,7 +384,7 @@ def run(plan, args={}):
             )
             launch_prometheus_grafana = True
             prometheus_additional_metrics_jobs.append(
-                beacon_metrics_gazer_prometheus_metrics_job
+                beacon_metrics_gazer_prometheus_metrics_job,
             )
             plan.print("Successfully launched beacon metrics gazer")
         elif additional_service == "dora":
@@ -375,6 +396,7 @@ def run(plan, args={}):
                 all_cl_client_contexts,
                 el_cl_data_files_artifact_uuid,
                 network_params.electra_fork_epoch,
+                network_params.network,
             )
             plan.print("Successfully launched dora")
         elif additional_service == "blobscan":
@@ -384,23 +406,39 @@ def run(plan, args={}):
                 all_cl_client_contexts,
                 all_el_client_contexts,
                 network_params.network_id,
+                persistent,
             )
             plan.print("Successfully launched blobscan")
         elif additional_service == "full_beaconchain_explorer":
             plan.print("Launching full-beaconchain-explorer")
             full_beaconchain_explorer_config_template = read_file(
-                static_files.FULL_BEACONCHAIN_CONFIG_TEMPLATE_FILEPATH
+                static_files.FULL_BEACONCHAIN_CONFIG_TEMPLATE_FILEPATH,
             )
             full_beaconchain_explorer.launch_full_beacon(
                 plan,
                 full_beaconchain_explorer_config_template,
                 all_cl_client_contexts,
                 all_el_client_contexts,
+                persistent,
             )
             plan.print("Successfully launched full-beaconchain-explorer")
         elif additional_service == "prometheus_grafana":
             # Allow prometheus to be launched last so is able to collect metrics from other services
             launch_prometheus_grafana = True
+        elif additional_service == "assertoor":
+            plan.print("Launching assertoor")
+            assertoor_config_template = read_file(
+                static_files.ASSERTOOR_CONFIG_TEMPLATE_FILEPATH,
+            )
+            assertoor_params = args_with_right_defaults.assertoor_params
+            assertoor.launch_assertoor(
+                plan,
+                assertoor_config_template,
+                all_participants,
+                args_with_right_defaults.participants,
+                assertoor_params,
+            )
+            plan.print("Successfully launched assertoor")
         elif additional_service == "custom_flood":
             mev_custom_flood.spam_in_background(
                 plan,
@@ -415,7 +453,6 @@ def run(plan, args={}):
         plan.print("Launching prometheus...")
         prometheus_private_url = prometheus.launch_prometheus(
             plan,
-            prometheus_config_template,
             all_el_client_contexts,
             all_cl_client_contexts,
             prometheus_additional_metrics_jobs,
@@ -428,7 +465,7 @@ def run(plan, args={}):
             grafana_datasource_config_template,
             grafana_dashboards_config_template,
             prometheus_private_url,
-            additional_dashboards=args_with_right_defaults.grafana_additional_dashboards,
+            additional_dashboards = args_with_right_defaults.grafana_additional_dashboards,
         )
         plan.print("Successfully launched grafana")
 
@@ -437,30 +474,30 @@ def run(plan, args={}):
         first_cl_client = all_cl_client_contexts[0]
         first_client_beacon_name = first_cl_client.beacon_service_name
         epoch_recipe = GetHttpRequestRecipe(
-            endpoint="/eth/v1/beacon/states/head/finality_checkpoints",
-            port_id=HTTP_PORT_ID_FOR_FACT,
-            extract={"finalized_epoch": ".data.finalized.epoch"},
+            endpoint = "/eth/v1/beacon/states/head/finality_checkpoints",
+            port_id = HTTP_PORT_ID_FOR_FACT,
+            extract = {"finalized_epoch": ".data.finalized.epoch"},
         )
         plan.wait(
-            recipe=epoch_recipe,
-            field="extract.finalized_epoch",
-            assertion="!=",
-            target_value="0",
-            timeout="40m",
-            service_name=first_client_beacon_name,
+            recipe = epoch_recipe,
+            field = "extract.finalized_epoch",
+            assertion = "!=",
+            target_value = "0",
+            timeout = "40m",
+            service_name = first_client_beacon_name,
         )
         plan.print("First finalized epoch occurred successfully")
 
     grafana_info = struct(
-        dashboard_path=GRAFANA_DASHBOARD_PATH_URL,
-        user=GRAFANA_USER,
-        password=GRAFANA_PASSWORD,
+        dashboard_path = GRAFANA_DASHBOARD_PATH_URL,
+        user = GRAFANA_USER,
+        password = GRAFANA_PASSWORD,
     )
     output = struct(
-        grafana_info=grafana_info,
-        all_participants=all_participants,
-        final_genesis_timestamp=final_genesis_timestamp,
-        genesis_validators_root=genesis_validators_root,
+        grafana_info = grafana_info,
+        all_participants = all_participants,
+        final_genesis_timestamp = final_genesis_timestamp,
+        genesis_validators_root = genesis_validators_root,
     )
 
     return output
