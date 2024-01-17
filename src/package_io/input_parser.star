@@ -1,12 +1,12 @@
-constants = import_module("../package_io/constants.star")
-
+constants = import_module("./constants.star")
+shared_utils = import_module("../shared_utils/shared_utils.star")
 genesis_constants = import_module(
     "../prelaunch_data_generator/genesis_constants/genesis_constants.star"
 )
 
 DEFAULT_EL_IMAGES = {
     "geth": "ethereum/client-go:latest",
-    "erigon": "ethpandaops/erigon:2.53.0",
+    "erigon": "ethpandaops/erigon:devel",
     "nethermind": "nethermind/nethermind:latest",
     "besu": "hyperledger/besu:latest",
     "reth": "ghcr.io/paradigmxyz/reth",
@@ -17,7 +17,7 @@ DEFAULT_CL_IMAGES = {
     "lighthouse": "sigp/lighthouse:latest",
     "teku": "consensys/teku:latest",
     "nimbus": "statusim/nimbus-eth2:multiarch-latest",
-    "prysm": "prysmaticlabs/prysm-beacon-chain:latest,prysmaticlabs/prysm-validator:latest",
+    "prysm": "gcr.io/prysmaticlabs/prysm/beacon-chain:latest,gcr.io/prysmaticlabs/prysm/validator:latest",
     "lodestar": "chainsafe/lodestar:latest",
 }
 
@@ -34,7 +34,7 @@ HIGH_DENEB_VALUE_FORK_VERKLE = 20000
 
 # MEV Params
 FLASHBOTS_MEV_BOOST_PORT = 18550
-MEV_BOOST_SERVICE_NAME_PREFIX = "mev-boost-"
+MEV_BOOST_SERVICE_NAME_PREFIX = "mev-boost"
 
 # Minimum number of validators required for a network to be valid is 64
 MIN_VALIDATORS = 64
@@ -52,6 +52,7 @@ ATTR_TO_BE_SKIPPED_AT_ROOT = (
     "network_params",
     "participants",
     "mev_params",
+    "assertoor_params",
     "goomy_blob_params",
     "tx_spammer_params",
     "custom_flood_params",
@@ -64,11 +65,17 @@ def input_parser(plan, input_args):
     # add default eth2 input params
     result["mev_type"] = None
     result["mev_params"] = get_default_mev_params()
-    result["additional_services"] = DEFAULT_ADDITIONAL_SERVICES
+    if result["network_params"]["network"] == "kurtosis":
+        result["additional_services"] = DEFAULT_ADDITIONAL_SERVICES
+    else:
+        result["additional_services"] = []
     result["grafana_additional_dashboards"] = []
     result["tx_spammer_params"] = get_default_tx_spammer_params()
     result["custom_flood_params"] = get_default_custom_flood_params()
     result["disable_peer_scoring"] = False
+    result["goomy_blob_params"] = get_default_goomy_blob_params()
+    result["assertoor_params"] = get_default_assertoor_params()
+    result["persistent"] = False
 
     for attr in input_args:
         value = input_args[attr]
@@ -88,6 +95,14 @@ def input_parser(plan, input_args):
             for sub_attr in input_args["custom_flood_params"]:
                 sub_value = input_args["custom_flood_params"][sub_attr]
                 result["custom_flood_params"][sub_attr] = sub_value
+        elif attr == "goomy_blob_params":
+            for sub_attr in input_args["goomy_blob_params"]:
+                sub_value = input_args["goomy_blob_params"][sub_attr]
+                result["goomy_blob_params"][sub_attr] = sub_value
+        elif attr == "assertoor_params":
+            for sub_attr in input_args["assertoor_params"]:
+                sub_value = input_args["assertoor_params"][sub_attr]
+                result["assertoor_params"][sub_attr] = sub_value
 
     if result.get("disable_peer_scoring"):
         result = enrich_disable_peer_scoring(result)
@@ -112,19 +127,21 @@ def input_parser(plan, input_args):
             )
         )
 
-    result["goomy_blob_params"] = get_default_goomy_blob_params()
     return struct(
         participants=[
             struct(
                 el_client_type=participant["el_client_type"],
                 el_client_image=participant["el_client_image"],
                 el_client_log_level=participant["el_client_log_level"],
+                el_client_volume_size=participant["el_client_volume_size"],
                 el_extra_params=participant["el_extra_params"],
                 el_extra_env_vars=participant["el_extra_env_vars"],
                 el_extra_labels=participant["el_extra_labels"],
                 cl_client_type=participant["cl_client_type"],
                 cl_client_image=participant["cl_client_image"],
                 cl_client_log_level=participant["cl_client_log_level"],
+                cl_client_volume_size=participant["cl_client_volume_size"],
+                cl_split_mode_enabled=participant["cl_split_mode_enabled"],
                 beacon_extra_params=participant["beacon_extra_params"],
                 beacon_extra_labels=participant["beacon_extra_labels"],
                 validator_extra_params=participant["validator_extra_params"],
@@ -152,12 +169,17 @@ def input_parser(plan, input_args):
                     scrape_interval=participant["prometheus_config"]["scrape_interval"],
                     labels=participant["prometheus_config"]["labels"],
                 ),
+                blobber_enabled=participant["blobber_enabled"],
+                blobber_extra_params=participant["blobber_extra_params"],
             )
             for participant in result["participants"]
         ],
         network_params=struct(
             preregistered_validator_keys_mnemonic=result["network_params"][
                 "preregistered_validator_keys_mnemonic"
+            ],
+            preregistered_validator_count=result["network_params"][
+                "preregistered_validator_count"
             ],
             num_validator_keys_per_node=result["network_params"][
                 "num_validator_keys_per_node"
@@ -170,9 +192,11 @@ def input_parser(plan, input_args):
             genesis_delay=result["network_params"]["genesis_delay"],
             max_churn=result["network_params"]["max_churn"],
             ejection_balance=result["network_params"]["ejection_balance"],
+            eth1_follow_distance=result["network_params"]["eth1_follow_distance"],
             capella_fork_epoch=result["network_params"]["capella_fork_epoch"],
             deneb_fork_epoch=result["network_params"]["deneb_fork_epoch"],
             electra_fork_epoch=result["network_params"]["electra_fork_epoch"],
+            network=result["network_params"]["network"],
         ),
         mev_params=struct(
             mev_relay_image=result["mev_params"]["mev_relay_image"],
@@ -199,6 +223,21 @@ def input_parser(plan, input_args):
         goomy_blob_params=struct(
             goomy_blob_args=result["goomy_blob_params"]["goomy_blob_args"],
         ),
+        assertoor_params=struct(
+            run_stability_check=result["assertoor_params"]["run_stability_check"],
+            run_block_proposal_check=result["assertoor_params"][
+                "run_block_proposal_check"
+            ],
+            run_lifecycle_test=result["assertoor_params"]["run_lifecycle_test"],
+            run_transaction_test=result["assertoor_params"]["run_transaction_test"],
+            run_blob_transaction_test=result["assertoor_params"][
+                "run_blob_transaction_test"
+            ],
+            run_opcodes_transaction_test=result["assertoor_params"][
+                "run_opcodes_transaction_test"
+            ],
+            tests=result["assertoor_params"]["tests"],
+        ),
         custom_flood_params=struct(
             interval_between_transactions=result["custom_flood_params"][
                 "interval_between_transactions"
@@ -213,6 +252,7 @@ def input_parser(plan, input_args):
         parallel_keystore_generation=result["parallel_keystore_generation"],
         grafana_additional_dashboards=result["grafana_additional_dashboards"],
         disable_peer_scoring=result["disable_peer_scoring"],
+        persistent=result["persistent"],
     )
 
 
@@ -250,6 +290,17 @@ def parse_network_params(input_args):
             result["network_params"]["seconds_per_slot"] < 12
         ):
             fail("nimbus can't be run with slot times below 12 seconds")
+
+        if participant["cl_split_mode_enabled"] and cl_client_type not in (
+            "nimbus",
+            "teku",
+        ):
+            fail(
+                "split mode is only supported for nimbus and teku clients, but you specified {0}".format(
+                    cl_client_type
+                )
+            )
+
         el_image = participant["el_client_image"]
         if el_image == "":
             default_image = DEFAULT_EL_IMAGES.get(el_client_type, "")
@@ -281,6 +332,17 @@ def parse_network_params(input_args):
         ethereum_metrics_exporter_enabled = participant[
             "ethereum_metrics_exporter_enabled"
         ]
+
+        blobber_enabled = participant["blobber_enabled"]
+        if blobber_enabled:
+            # unless we are running lighthouse, we don't support blobber
+            if participant["cl_client_type"] != "lighthouse":
+                fail(
+                    "blobber is not supported for {0} client".format(
+                        participant["cl_client_type"]
+                    )
+                )
+
         if ethereum_metrics_exporter_enabled == False:
             default_ethereum_metrics_exporter_enabled = result[
                 "ethereum_metrics_exporter_enabled"
@@ -315,10 +377,14 @@ def parse_network_params(input_args):
             "deposit_contract_address is empty or spaces it needs to be of non zero length"
         )
 
-    if result["network_params"]["preregistered_validator_keys_mnemonic"].strip() == "":
-        fail(
-            "preregistered_validator_keys_mnemonic is empty or spaces it needs to be of non zero length"
-        )
+    if result["network_params"]["network"] == "kurtosis":
+        if (
+            result["network_params"]["preregistered_validator_keys_mnemonic"].strip()
+            == ""
+        ):
+            fail(
+                "preregistered_validator_keys_mnemonic is empty or spaces it needs to be of non zero length"
+            )
 
     if result["network_params"]["seconds_per_slot"] == 0:
         fail("seconds_per_slot is 0 needs to be > 0 ")
@@ -336,16 +402,17 @@ def parse_network_params(input_args):
     ):
         fail("electra can only happen with capella genesis not bellatrix")
 
-    actual_num_validators = (
-        total_participant_count
-        * result["network_params"]["num_validator_keys_per_node"]
-    )
-    if MIN_VALIDATORS > actual_num_validators:
-        fail(
-            "We require at least {0} validators but got {1}".format(
-                MIN_VALIDATORS, actual_num_validators
+    if result["network_params"]["network"] == "kurtosis":
+        if MIN_VALIDATORS > actual_num_validators:
+            fail(
+                "We require at least {0} validators but got {1}".format(
+                    MIN_VALIDATORS, actual_num_validators
+                )
             )
-        )
+    else:
+        # Don't allow validators on non-kurtosis networks
+        for participant in result["participants"]:
+            participant["validator_count"] = 0
 
     return result
 
@@ -353,7 +420,7 @@ def parse_network_params(input_args):
 def get_client_log_level_or_default(
     participant_log_level, global_log_level, client_log_levels
 ):
-    log_level = participant_log_level
+    log_level = client_log_levels.get(participant_log_level, "")
     if log_level == "":
         log_level = client_log_levels.get(global_log_level, "")
         if log_level == "":
@@ -384,6 +451,7 @@ def default_network_params():
     # this is temporary till we get params working
     return {
         "preregistered_validator_keys_mnemonic": "giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete",
+        "preregistered_validator_count": 0,
         "num_validator_keys_per_node": 64,
         "network_id": "3151908",
         "deposit_contract_address": "0x4242424242424242424242424242424242424242",
@@ -391,9 +459,11 @@ def default_network_params():
         "genesis_delay": 120,
         "max_churn": 8,
         "ejection_balance": 16000000000,
+        "eth1_follow_distance": 2048,
         "capella_fork_epoch": 0,
         "deneb_fork_epoch": 500,
         "electra_fork_epoch": None,
+        "network": "kurtosis",
     }
 
 
@@ -402,12 +472,15 @@ def default_participant():
         "el_client_type": "geth",
         "el_client_image": "",
         "el_client_log_level": "",
+        "el_client_volume_size": 0,
         "el_extra_params": [],
         "el_extra_env_vars": {},
         "el_extra_labels": {},
         "cl_client_type": "lighthouse",
         "cl_client_image": "",
         "cl_client_log_level": "",
+        "cl_client_volume_size": 0,
+        "cl_split_mode_enabled": False,
         "beacon_extra_params": [],
         "beacon_extra_labels": {},
         "validator_extra_params": [],
@@ -433,6 +506,8 @@ def default_participant():
             "scrape_interval": "15s",
             "labels": None,
         },
+        "blobber_enabled": False,
+        "blobber_extra_params": [],
     }
 
 
@@ -464,6 +539,18 @@ def get_default_goomy_blob_params():
     return {"goomy_blob_args": []}
 
 
+def get_default_assertoor_params():
+    return {
+        "run_stability_check": True,
+        "run_block_proposal_check": True,
+        "run_lifecycle_test": False,
+        "run_transaction_test": False,
+        "run_blob_transaction_test": False,
+        "run_opcodes_transaction_test": False,
+        "tests": [],
+    }
+
+
 def get_default_custom_flood_params():
     # this is a simple script that increases the balance of the coinbase address at a cadence
     return {"interval_between_transactions": 1}
@@ -485,12 +572,22 @@ def enrich_disable_peer_scoring(parsed_arguments_dict):
 # TODO perhaps clean this up into a map
 def enrich_mev_extra_params(parsed_arguments_dict, mev_prefix, mev_port, mev_type):
     for index, participant in enumerate(parsed_arguments_dict["participants"]):
-        mev_url = "http://{0}{1}:{2}".format(mev_prefix, index, mev_port)
+        index_str = shared_utils.zfill_custom(
+            index + 1, len(str(len(parsed_arguments_dict["participants"])))
+        )
+        mev_url = "http://{0}-{1}-{2}-{3}:{4}".format(
+            MEV_BOOST_SERVICE_NAME_PREFIX,
+            index_str,
+            participant["cl_client_type"],
+            participant["el_client_type"],
+            mev_port,
+        )
 
         if participant["cl_client_type"] == "lighthouse":
             participant["validator_extra_params"].append("--builder-proposals")
             participant["beacon_extra_params"].append("--builder={0}".format(mev_url))
         if participant["cl_client_type"] == "lodestar":
+            participant["validator_extra_params"].append("--builder")
             participant["beacon_extra_params"].append("--builder")
             participant["beacon_extra_params"].append(
                 "--builder.urls={0}".format(mev_url)
@@ -515,7 +612,9 @@ def enrich_mev_extra_params(parsed_arguments_dict, mev_prefix, mev_port, mev_typ
             )
 
     num_participants = len(parsed_arguments_dict["participants"])
-
+    index_str = shared_utils.zfill_custom(
+        num_participants + 1, len(str(num_participants + 1))
+    )
     if mev_type == "full":
         mev_participant = default_participant()
         mev_participant["el_client_type"] = (
@@ -539,8 +638,8 @@ def enrich_mev_extra_params(parsed_arguments_dict, mev_prefix, mev_port, mev_typ
                 "el_extra_params": [
                     "--builder",
                     "--builder.remote_relay_endpoint=http://mev-relay-api:9062",
-                    "--builder.beacon_endpoints=http://cl-{0}-lighthouse-geth:4000".format(
-                        num_participants + 1
+                    "--builder.beacon_endpoints=http://cl-{0}-lighthouse-geth-builder:4000".format(
+                        index_str
                     ),
                     "--builder.bellatrix_fork_version={0}".format(
                         constants.BELLATRIX_FORK_VERSION

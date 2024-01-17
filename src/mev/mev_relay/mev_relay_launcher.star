@@ -1,6 +1,6 @@
 redis_module = import_module("github.com/kurtosis-tech/redis-package/main.star")
 postgres_module = import_module("github.com/kurtosis-tech/postgres-package/main.star")
-constants = import_module("../package_io/constants.star")
+constants = import_module("../../package_io/constants.star")
 
 DUMMY_SECRET_KEY = "0x607a11b45a7219cc61a3d9c5fd08c7eebd602a6a19a977f8d3771d5711a550f2"
 DUMMY_PUB_KEY = "0xa55c1285d84ba83a5ad26420cd5ad3091e49c55a813eee651cd467db38a8c8e63192f47955e9376f6b42f6d190571cb5"
@@ -18,8 +18,25 @@ NETWORK_ID_TO_NAME = {
     "3": "ropsten",
 }
 
-DONT_PERSIST_TO_DISK = False
 LAUNCH_ADMINER = True
+
+# The min/max CPU/memory that mev-relay can use
+RELAY_MIN_CPU = 100
+RELAY_MAX_CPU = 1000
+RELAY_MIN_MEMORY = 128
+RELAY_MAX_MEMORY = 1024
+
+# The min/max CPU/memory that postgres can use
+POSTGRES_MIN_CPU = 10
+POSTGRES_MAX_CPU = 1000
+POSTGRES_MIN_MEMORY = 32
+POSTGRES_MAX_MEMORY = 1024
+
+# The min/max CPU/memory that redis can use
+REDIS_MIN_CPU = 10
+REDIS_MAX_CPU = 1000
+REDIS_MIN_MEMORY = 16
+REDIS_MAX_MEMORY = 1024
 
 
 def launch_mev_relay(
@@ -30,8 +47,16 @@ def launch_mev_relay(
     validator_root,
     builder_uri,
     seconds_per_slot,
+    persistent,
 ):
-    redis = redis_module.run(plan)
+    redis = redis_module.run(
+        plan,
+        service_name="mev-relay-redis",
+        min_cpu=REDIS_MIN_CPU,
+        max_cpu=REDIS_MAX_CPU,
+        min_memory=REDIS_MIN_MEMORY,
+        max_memory=REDIS_MAX_MEMORY,
+    )
     # making the password postgres as the relay expects it to be postgres
     postgres = postgres_module.run(
         plan,
@@ -39,8 +64,12 @@ def launch_mev_relay(
         user="postgres",
         database="postgres",
         service_name="mev-relay-postgres",
-        persistent=DONT_PERSIST_TO_DISK,
+        persistent=persistent,
         launch_adminer=LAUNCH_ADMINER,
+        min_cpu=POSTGRES_MIN_CPU,
+        max_cpu=POSTGRES_MAX_CPU,
+        min_memory=POSTGRES_MIN_MEMORY,
+        max_memory=POSTGRES_MAX_MEMORY,
     )
 
     network_name = NETWORK_ID_TO_NAME.get(network_id, network_id)
@@ -54,6 +83,8 @@ def launch_mev_relay(
         "DENEB_FORK_VERSION": constants.DENEB_FORK_VERSION,
         "GENESIS_VALIDATORS_ROOT": validator_root,
         "SEC_PER_SLOT": str(seconds_per_slot),
+        "LOG_LEVEL": "debug",
+        "DB_TABLE_PREFIX": "custom",
     }
 
     redis_url = "{}:{}".format(redis.hostname, redis.port_number)
@@ -75,6 +106,10 @@ def launch_mev_relay(
             ]
             + mev_params.mev_relay_housekeeper_extra_args,
             env_vars=env_vars,
+            min_cpu=RELAY_MIN_CPU,
+            max_cpu=RELAY_MAX_CPU,
+            min_memory=RELAY_MIN_MEMORY,
+            max_memory=RELAY_MAX_MEMORY,
         ),
     )
 
@@ -106,6 +141,10 @@ def launch_mev_relay(
                 )
             },
             env_vars=env_vars,
+            min_cpu=RELAY_MIN_CPU,
+            max_cpu=RELAY_MAX_CPU,
+            min_memory=RELAY_MIN_MEMORY,
+            max_memory=RELAY_MAX_MEMORY,
         ),
     )
 
@@ -134,6 +173,10 @@ def launch_mev_relay(
                 )
             },
             env_vars=env_vars,
+            min_cpu=RELAY_MIN_CPU,
+            max_cpu=RELAY_MAX_CPU,
+            min_memory=RELAY_MIN_MEMORY,
+            max_memory=RELAY_MAX_MEMORY,
         ),
     )
 
