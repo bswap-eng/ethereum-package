@@ -85,12 +85,13 @@ def deploy_kETH() -> (bool, dict):
 
 def get_sender() -> str:
     # Extract the right private key from the list of private keys
-    private_keys = os.getenv("PRIVATE_KEYS", ACCOUNT_ALIAS+":7da08f856b5956d40a72968f93396f6acff17193f013e8053f6fbb6c08c194d6")
+    private_keys = os.getenv("PRIVATE_KEYS", ACCOUNT_ALIAS+":ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
     private_keys.split(";")
     sender = ""
     for key in private_keys:
         if key.split(":")[0] == ACCOUNT_ALIAS:
-            sender = key.split(":")[1]
+            sender_keys = key.split(":")[1].split(",")
+            sender = sender_keys[0]
             break
     return sender
 

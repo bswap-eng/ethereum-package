@@ -1,13 +1,15 @@
 participants:
   - el_client_type: geth
-    el_client_image: ethereum/client-go:latest
+    el_client_image: ethpandaops/geth:master-5b57727
     el_client_log_level: ""
     el_extra_params: []
     el_extra_labels: {}
     cl_client_type: lighthouse
-    cl_client_image: sigp/lighthouse:latest
+    cl_client_image: ethpandaops/lighthouse:proposer-signature-cache-29ecfc3
     cl_client_log_level: ""
-    beacon_extra_params: []
+    beacon_extra_params:
+      - "--always-prefer-builder-payload" # this is lighthouse specific. this is required for MEV operations to work over local block proposals since profits from the tx pool from the builder and that of the other nodes are the same
+      - "--disable-peer-scoring" # lighthouse specific
     beacon_extra_labels: {}
     validator_extra_params: []
     validator_extra_labels: {}
@@ -47,7 +49,7 @@ network_params:
   max_churn: 8
   ejection_balance: 16000000000
   capella_fork_epoch: 0
-  deneb_fork_epoch: 4
+  deneb_fork_epoch: 100
   electra_fork_epoch: null
 additional_services:
   - tx_spammer
@@ -61,7 +63,7 @@ global_client_log_level: info
 snooper_enabled: false
 ethereum_metrics_exporter_enabled: false
 parallel_keystore_generation: false
-mev_type: null
+mev_type: full
 mev_params:
   mev_relay_image: flashbots/mev-boost-relay
   mev_relay_api_extra_args: []
@@ -72,8 +74,11 @@ mev_params:
     scrape_interval: 15s
     labels: {}
   mev_flood_image: flashbots/mev-flood
-  mev_flood_extra_args: []
-  mev_flood_seconds_per_bundle: 15
+  mev_flood_extra_args:
+  - "--txsPerBundle=300"
+  mev_flood_seconds_per_bundle: 12
+  mev_boost_image: flashbots/mev-boost:1.6.4844.dev5
+  # mev_builder_image: flashbots-builder-deneb
   # use either mev_plus or mev_boost, not both for MEV operations, this defaults to using mev_boost if not specified in this file
   use_mev_plus: false
   use_mev_boost: true
