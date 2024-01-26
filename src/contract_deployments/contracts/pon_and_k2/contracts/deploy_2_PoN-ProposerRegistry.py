@@ -3,7 +3,6 @@ from web3.middleware import construct_sign_and_send_raw_middleware
 import os
 import time
 import logging
-from decimal import Decimal
 
 # Account Alias: PON
 ACCOUNT_ALIAS = "PON"
