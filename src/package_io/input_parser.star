@@ -45,6 +45,10 @@ HIGH_DENEB_VALUE_FORK_VERKLE = 2000000000
 FLASHBOTS_MEV_BOOST_PORT = 18550
 MEV_BOOST_SERVICE_NAME_PREFIX = "mev-boost"
 
+# MEV Plus Params
+MEV_PLUS_BUILDER_API_PORT = 18551
+MEV_PLUS_SERVICE_NAME_PREFIX = "mev-plus"
+
 # Minimum number of validators required for a network to be valid is 64
 MIN_VALIDATORS = 64
 
@@ -65,6 +69,7 @@ ATTR_TO_BE_SKIPPED_AT_ROOT = (
     "goomy_blob_params",
     "tx_spammer_params",
     "custom_flood_params",
+    "mev_plus_params",
     "xatu_sentry_params",
 )
 
@@ -75,6 +80,7 @@ def input_parser(plan, input_args):
     # add default eth2 input params
     result["mev_type"] = None
     result["mev_params"] = get_default_mev_params()
+    result["mev_plus_params"] = parse_mev_plus_params(input_args)
     if (
         result["network_params"]["network"] == constants.NETWORK_NAME.kurtosis
         or constants.NETWORK_NAME.shadowfork in result["network_params"]["network"]
@@ -140,13 +146,16 @@ def input_parser(plan, input_args):
     if result.get("disable_peer_scoring"):
         result = enrich_disable_peer_scoring(result)
 
-    if result.get("mev_type") in ("mock", "full"):
-        result = enrich_mev_extra_params(
-            result,
-            MEV_BOOST_SERVICE_NAME_PREFIX,
-            FLASHBOTS_MEV_BOOST_PORT,
-            result.get("mev_type"),
-        )
+    # Always enable builder api on nodes to allow for MEV Plus to connect for any other additional module services
+    # Builder status registration endpoint would be fired but no blocks delivered externally from a relay,
+    # Some modules may present on-chain solutions that may not require a relay, or execute other actions on these events
+    # Regardless if no block is delivereed all nodes would still operate as normal using their local blocks
+    result = enrich_mev_extra_params(
+        result,
+        MEV_PLUS_SERVICE_NAME_PREFIX,
+        MEV_PLUS_BUILDER_API_PORT,
+        result.get("mev_type"),
+    )
 
     if (
         result.get("mev_type") == "full"
@@ -266,6 +275,12 @@ def input_parser(plan, input_args):
             mev_flood_seconds_per_bundle=result["mev_params"][
                 "mev_flood_seconds_per_bundle"
             ],
+            use_mev_plus=result["mev_params"]["use_mev_plus"],
+            use_mev_boost=result["mev_params"]["use_mev_boost"],
+        ),
+        mev_plus_params=struct(
+            mev_plus_image=result["mev_plus_params"]["mev_plus_image"],
+            mev_plus_flags=result["mev_plus_params"]["mev_plus_flags"],
         ),
         tx_spammer_params=struct(
             tx_spammer_extra_args=result["tx_spammer_params"]["tx_spammer_extra_args"],
@@ -316,6 +331,22 @@ def input_parser(plan, input_args):
         global_node_selectors=result["global_node_selectors"],
     )
 
+def parse_mev_plus_params(input_args):
+    result = {}
+    flags = {}
+    for attr in input_args:
+        if attr == "mev_plus_params":
+            for sub_attr in input_args["mev_plus_params"]:
+                if sub_attr == "mev_plus_image":
+                    result[sub_attr] = input_args["mev_plus_params"][sub_attr]
+                elif sub_attr == "mev_plus_modules":
+                    for mev_plus_module in input_args["mev_plus_params"]["mev_plus_modules"]:
+                        for module_flag in input_args["mev_plus_params"]["mev_plus_modules"][mev_plus_module]:
+                            flags["{0}.{1}".format(mev_plus_module, module_flag)] = input_args["mev_plus_params"]["mev_plus_modules"][mev_plus_module][module_flag]
+                else:
+                    fail("mev_plus_params has an invalid attribute: {0}".format(sub_attr))
+    result["mev_plus_flags"] = flags
+    return result
 
 def parse_network_params(input_args):
     result = default_input_args()
@@ -695,6 +726,8 @@ def get_default_mev_params():
             "scrape_interval": "15s",
             "labels": None,
         },
+        "use_mev_plus": False,
+        "use_mev_boost": True,
     }
 
 
@@ -763,7 +796,7 @@ def enrich_mev_extra_params(parsed_arguments_dict, mev_prefix, mev_port, mev_typ
             index + 1, len(str(len(parsed_arguments_dict["participants"])))
         )
         mev_url = "http://{0}-{1}-{2}-{3}:{4}".format(
-            MEV_BOOST_SERVICE_NAME_PREFIX,
+            mev_prefix,
             index_str,
             participant["cl_type"],
             participant["el_type"],

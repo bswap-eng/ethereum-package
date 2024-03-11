@@ -70,7 +70,7 @@ network_params:
   min_validator_withdrawability_delay: 256
   shard_committee_period: 256
   capella_fork_epoch: 0
-  deneb_fork_epoch: 4
+  deneb_fork_epoch: 2
   electra_fork_epoch: null
   network_sync_base_url: https://ethpandaops-ethereum-node-snapshots.ams3.digitaloceanspaces.com/
 additional_services:
@@ -101,7 +101,7 @@ parallel_keystore_generation: false
 disable_peer_scoring: false
 grafana_additional_dashboards: []
 persistent: false
-mev_type: null
+mev_type: full
 mev_params:
   mev_relay_image: flashbots/mev-boost-relay
   mev_builder_image: ethpandaops/flashbots-builder:main
@@ -118,8 +118,16 @@ mev_params:
   mev_flood_image: flashbots/mev-flood
   mev_flood_extra_args: []
   mev_flood_seconds_per_bundle: 15
+  # use either mev_plus or mev_boost, not both for MEV operations, this defaults to using mev_boost if not specified in this file
+  use_mev_plus: false
+  use_mev_boost: true
   custom_flood_params:
     interval_between_transactions: 1
+mev_plus_params:
+  mev_plus_image: mev-plus:latest
+  mev_plus_modules:
+    externalValidatorProxy: # MEV Plus module name
+      logger-level: debug # MEV Plus module flag
 xatu_sentry_enabled: false
 xatu_sentry_params:
   xatu_sentry_image: ethpandaops/xatu-sentry

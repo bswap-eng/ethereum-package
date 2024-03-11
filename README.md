@@ -48,7 +48,7 @@ To help you with the transition, we have added a script that will automatically 
 
 ![Run of the Ethereum Network Package](run.gif)
 
-This is a [Kurtosis][kurtosis-repo] package that will spin up a private Ethereum testnet over Docker or Kubernetes with multi-client support, Flashbot's `mev-boost` infrastructure for PBS-related testing/validation, and other useful network tools (transaction spammer, monitoring tools, etc). Kurtosis packages are entirely reproducible and composable, so this will work the same way over Docker or Kubernetes, in the cloud or locally on your machine.
+This is a [Kurtosis][kurtosis-repo] package that will spin up a private Ethereum testnet over Docker or Kubernetes with multi-client support, Flashbot's `mev-boost` infrastructure for PBS-related testing/validation, and other useful network tools (transaction spammer, monitoring tools, etc). Additionally this package includes BlockSwap's `mev-plus` infrastructure also available for PBS-related testing/validation as well as many other on-chain and of-chain composable sidecar ecosystems for validator applications. Kurtosis packages are entirely reproducible and composable, so this will work the same way over Docker or Kubernetes, in the cloud or locally on your machine.
 
 You now have the ability to spin up a private Ethereum testnet or public devnet/testnet (e.g. Goerli, Holesky, Sepolia, dencun-devnet-12, verkle-gen-devnet-2 etc) with a single command. This package is designed to be used for testing, validation, and development of Ethereum clients, and is not intended for production use. For more details check network_params.network in the [configuration section](./README.md#configuration).
 
@@ -65,6 +65,7 @@ Optional features (enabled via flags or parameter files at runtime):
 
 * Block until the Beacon nodes finalize an epoch (i.e. finalized_epoch > 0)
 * Spin up & configure parameters for the infrastructure behind Flashbot's implementation of PBS using `mev-boost`, in either `full` or `mock` mode. More details [here](./README.md#proposer-builder-separation-pbs-implementation-via-flashbots-mev-boost-protocol).
+* Spin up & configure parameters for the infrastructure behind the validator side-car and PBS ecosystem using `mev-plus`. More details [here](./README.md#proposer-builder-separation-pbs-implementation-via-blockswaps-mev-plus-protocol).
 * Spin up & connect the network to a [beacon metrics gazer service](https://github.com/dapplion/beacon-metrics-gazer) to collect network-wide participation metrics.
 * Spin up and connect a [JSON RPC Snooper](https://github.com/ethDreamer/json_rpc_snoop) to the network log responses & requests between the EL engine API and the CL client.
 * Specify extra parameters to be passed in for any of the: CL client Beacon, and CL client validator, and/or EL client containers
@@ -98,6 +99,7 @@ Where `network_params.yaml` contains the parameters for your network in your hom
 Kurtosis packages work the same way over Docker or on Kubernetes. Please visit our [Kubernetes docs](https://docs.kurtosis.com/k8s) to learn how to spin up a private testnet on a Kubernetes cluster.
 
 #### Considerations for Running on a Public Testnet with a Cloud Provider
+
 When running on a public testnet using a cloud provider's Kubernetes cluster, there are a few important factors to consider:
 
 1. State Growth: The growth of the state might be faster than anticipated. This could potentially lead to issues if the default parameters become insufficient over time. It's important to monitor state growth and adjust parameters as necessary.
