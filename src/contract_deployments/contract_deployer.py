@@ -1,8 +1,15 @@
 import os
 import subprocess
 import re
+import logging
 
 contracts_root_folder = 'contracts'
+
+logging.basicConfig(filename='/tmp/contract_deployer.log',
+                    filemode='w',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
 
 def deploy_all_projects():
     # Get the list of project folders
@@ -36,3 +43,8 @@ def deploy_all_projects():
             else:
                 print(f"Project {project_folder}: Error deploying contract {contract_file} (Order {order_number}).")
                 print("Error:", result.stderr)
+
+if __name__ == '__main__':
+    logging.info('Starting all contract deployments.')
+    deploy_all_projects()
+    logging.info('Finished all contract deployment.')

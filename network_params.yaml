@@ -1,11 +1,11 @@
 participants:
   - el_client_type: geth
-    el_client_image: ethpandaops/geth:master-5b57727
+    el_client_image: ethereum/client-go:latest
     el_client_log_level: ""
     el_extra_params: []
     el_extra_labels: {}
     cl_client_type: lighthouse
-    cl_client_image: ethpandaops/lighthouse:proposer-signature-cache-29ecfc3
+    cl_client_image: sigp/lighthouse:latest
     cl_client_log_level: ""
     beacon_extra_params:
       - "--always-prefer-builder-payload" # this is lighthouse specific. this is required for MEV operations to work over local block proposals since profits from the tx pool from the builder and that of the other nodes are the same
@@ -49,7 +49,7 @@ network_params:
   max_churn: 8
   ejection_balance: 16000000000
   capella_fork_epoch: 0
-  deneb_fork_epoch: 100
+  deneb_fork_epoch: 2
   electra_fork_epoch: null
 additional_services:
   - tx_spammer
@@ -80,8 +80,8 @@ mev_params:
   mev_boost_image: flashbots/mev-boost:1.6.4844.dev5
   # mev_builder_image: flashbots-builder-deneb
   # use either mev_plus or mev_boost, not both for MEV operations, this defaults to using mev_boost if not specified in this file
-  use_mev_plus: false
-  use_mev_boost: true
+  use_mev_plus: true
+  use_mev_boost: false
 mev_plus_params:
   mev_plus_image: mev-plus:latest
   mev_plus_modules:
