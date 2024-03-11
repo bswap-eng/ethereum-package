@@ -1,6 +1,6 @@
 shared_utils = import_module("../../shared_utils/shared_utils.star")
 input_parser = import_module("../../package_io/input_parser.star")
-el_client_context = import_module("../../el/el_client_context.star")
+el_context = import_module("../../el/el_context.star")
 el_admin_node_info = import_module("../../el/el_admin_node_info.star")
 node_metrics = import_module("../../node_metrics_info.star")
 constants = import_module("../../package_io/constants.star")
@@ -13,9 +13,7 @@ METRICS_PORT_NUM = 9001
 
 # The min/max CPU/memory that the execution node can use
 EXECUTION_MIN_CPU = 100
-EXECUTION_MAX_CPU = 1000
 EXECUTION_MIN_MEMORY = 256
-EXECUTION_MAX_MEMORY = 1024
 
 # Port IDs
 RPC_PORT_ID = "rpc"
@@ -53,11 +51,11 @@ USED_PORTS = {
 ENTRYPOINT_ARGS = ["sh", "-c"]
 
 VERBOSITY_LEVELS = {
-    constants.GLOBAL_CLIENT_LOG_LEVEL.error: "v",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.warn: "vv",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.info: "vvv",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.debug: "vvvv",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.trace: "vvvvv",
+    constants.GLOBAL_LOG_LEVEL.error: "v",
+    constants.GLOBAL_LOG_LEVEL.warn: "vv",
+    constants.GLOBAL_LOG_LEVEL.info: "vvv",
+    constants.GLOBAL_LOG_LEVEL.debug: "vvvv",
+    constants.GLOBAL_LOG_LEVEL.trace: "vvvvv",
 }
 
 
@@ -79,21 +77,28 @@ def launch(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant_log_level, global_log_level, VERBOSITY_LEVELS
     )
 
-    el_min_cpu = el_min_cpu if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
-    el_max_cpu = el_max_cpu if int(el_max_cpu) > 0 else EXECUTION_MAX_CPU
-    el_min_mem = el_min_mem if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
-    el_max_mem = el_max_mem if int(el_max_mem) > 0 else EXECUTION_MAX_MEMORY
-    network_name = (
-        "devnets"
-        if launcher.network != "kurtosis"
-        and launcher.network not in constants.PUBLIC_NETWORKS
-        else launcher.network
+    network_name = shared_utils.get_network_name(launcher.network)
+
+    el_min_cpu = int(el_min_cpu) if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
+    el_max_cpu = (
+        int(el_max_cpu)
+        if int(el_max_cpu) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["reth_max_cpu"]
     )
+    el_min_mem = int(el_min_mem) if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
+    el_max_mem = (
+        int(el_max_mem)
+        if int(el_max_mem) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["reth_max_mem"]
+    )
+
     el_volume_size = (
         el_volume_size
         if int(el_volume_size) > 0
@@ -121,6 +126,8 @@ def launch(
         extra_labels,
         persistent,
         el_volume_size,
+        tolerations,
+        node_selectors,
     )
 
     service = plan.add_service(service_name, config)
@@ -132,7 +139,7 @@ def launch(
         service_name, METRICS_PATH, metric_url
     )
 
-    return el_client_context.new_el_client_context(
+    return el_context.new_el_context(
         "reth",
         "",  # reth has no enr
         enode,
@@ -164,6 +171,8 @@ def get_config(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     init_datadir_cmd_str = "reth init --datadir={0} --chain={1}".format(
         EXECUTION_DATA_DIRPATH_ON_CLIENT_CONTAINER,
@@ -198,7 +207,7 @@ def get_config(
         "--authrpc.addr=0.0.0.0",
         "--metrics=0.0.0.0:{0}".format(METRICS_PORT_NUM),
     ]
-    if network == "kurtosis":
+    if network == constants.NETWORK_NAME.kurtosis:
         if len(existing_el_clients) > 0:
             cmd.append(
                 "--bootnodes="
@@ -242,6 +251,7 @@ def get_config(
             persistent_key="data-{0}".format(service_name),
             size=el_volume_size,
         )
+
     return ServiceConfig(
         image=image,
         ports=USED_PORTS,
@@ -255,12 +265,14 @@ def get_config(
         max_memory=el_max_mem,
         env_vars=extra_env_vars,
         labels=shared_utils.label_maker(
-            constants.EL_CLIENT_TYPE.reth,
+            constants.EL_TYPE.reth,
             constants.CLIENT_TYPES.el,
             image,
             cl_client_name,
             extra_labels,
         ),
+        tolerations=tolerations,
+        node_selectors=node_selectors,
     )
 
 

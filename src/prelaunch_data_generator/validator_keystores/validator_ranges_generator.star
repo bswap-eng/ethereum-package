@@ -5,18 +5,18 @@ shared_utils = import_module("../../shared_utils/shared_utils.star")
 def generate_validator_ranges(
     plan,
     config_template,
-    cl_client_contexts,
+    cl_contexts,
     participants,
 ):
     data = []
     running_total_validator_count = 0
-    for index, client in enumerate(cl_client_contexts):
+    for index, client in enumerate(cl_contexts):
         participant = participants[index]
         if participant.validator_count == 0:
             continue
         start_index = running_total_validator_count
         running_total_validator_count += participant.validator_count
-        end_index = start_index + participant.validator_count
+        end_index = start_index + participant.validator_count - 1
         service_name = client.beacon_service_name
         data.append(
             {

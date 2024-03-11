@@ -1,6 +1,6 @@
 shared_utils = import_module("../../shared_utils/shared_utils.star")
 input_parser = import_module("../..//package_io/input_parser.star")
-el_client_context = import_module("../../el/el_client_context.star")
+el_context = import_module("../../el/el_context.star")
 el_admin_node_info = import_module("../../el/el_admin_node_info.star")
 
 node_metrics = import_module("../../node_metrics_info.star")
@@ -15,9 +15,7 @@ METRICS_PORT_NUM = 9001
 
 # The min/max CPU/memory that the execution node can use
 EXECUTION_MIN_CPU = 100
-EXECUTION_MAX_CPU = 2000
 EXECUTION_MIN_MEMORY = 256
-EXECUTION_MAX_MEMORY = 1024
 
 # Port IDs
 RPC_PORT_ID = "rpc"
@@ -55,11 +53,11 @@ USED_PORTS = {
 ENTRYPOINT_ARGS = []
 
 VERBOSITY_LEVELS = {
-    constants.GLOBAL_CLIENT_LOG_LEVEL.error: "error",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.warn: "warn",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.info: "info",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.debug: "debug",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.trace: "trace",
+    constants.GLOBAL_LOG_LEVEL.error: "error",
+    constants.GLOBAL_LOG_LEVEL.warn: "warn",
+    constants.GLOBAL_LOG_LEVEL.info: "info",
+    constants.GLOBAL_LOG_LEVEL.debug: "debug",
+    constants.GLOBAL_LOG_LEVEL.trace: "trace",
 }
 
 
@@ -80,22 +78,28 @@ def launch(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant_log_level, global_log_level, VERBOSITY_LEVELS
     )
 
-    el_min_cpu = el_min_cpu if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
-    el_max_cpu = el_max_cpu if int(el_max_cpu) > 0 else EXECUTION_MAX_CPU
-    el_min_mem = el_min_mem if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
-    el_max_mem = el_max_mem if int(el_max_mem) > 0 else EXECUTION_MAX_MEMORY
+    network_name = shared_utils.get_network_name(launcher.network)
 
-    network_name = (
-        "devnets"
-        if launcher.network != "kurtosis"
-        and launcher.network not in constants.PUBLIC_NETWORKS
-        else launcher.network
+    el_min_cpu = int(el_min_cpu) if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
+    el_max_cpu = (
+        int(el_max_cpu)
+        if int(el_max_cpu) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["ethereumjs_max_cpu"]
     )
+    el_min_mem = int(el_min_mem) if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
+    el_max_mem = (
+        int(el_max_mem)
+        if int(el_max_mem) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["ethereumjs_max_mem"]
+    )
+
     el_volume_size = (
         el_volume_size
         if int(el_volume_size) > 0
@@ -123,6 +127,8 @@ def launch(
         extra_labels,
         persistent,
         el_volume_size,
+        tolerations,
+        node_selectors,
     )
 
     service = plan.add_service(service_name, config)
@@ -133,7 +139,7 @@ def launch(
     # metrics_url = "http://{0}:{1}".format(service.ip_address, METRICS_PORT_NUM)
     ethjs_metrics_info = None
 
-    return el_client_context.new_el_client_context(
+    return el_context.new_el_context(
         "ethereumjs",
         "",  # ethereumjs has no enr
         enode,
@@ -165,6 +171,8 @@ def get_config(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     cmd = [
         "--dataDir=" + EXECUTION_DATA_DIRPATH_ON_CLIENT_CONTAINER,
@@ -197,7 +205,7 @@ def get_config(
     else:
         cmd.append("--network=" + network)
 
-    if network == "kurtosis":
+    if network == constants.NETWORK_NAME.kurtosis:
         if len(existing_el_clients) > 0:
             cmd.append(
                 "--bootnodes="
@@ -243,12 +251,14 @@ def get_config(
         max_memory=el_max_mem,
         env_vars=extra_env_vars,
         labels=shared_utils.label_maker(
-            constants.EL_CLIENT_TYPE.ethereumjs,
+            constants.EL_TYPE.ethereumjs,
             constants.CLIENT_TYPES.el,
             image,
             cl_client_name,
             extra_labels,
         ),
+        tolerations=tolerations,
+        node_selectors=node_selectors,
     )
 
 

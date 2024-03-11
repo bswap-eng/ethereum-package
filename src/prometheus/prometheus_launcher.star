@@ -3,7 +3,7 @@ prometheus = import_module("github.com/kurtosis-tech/prometheus-package/main.sta
 
 EXECUTION_CLIENT_TYPE = "execution"
 BEACON_CLIENT_TYPE = "beacon"
-VALIDATOR_CLIENT_TYPE = "validator"
+vc_type = "validator"
 
 METRICS_INFO_NAME_KEY = "name"
 METRICS_INFO_URL_KEY = "url"
@@ -21,33 +21,46 @@ MAX_MEMORY = 2048
 
 def launch_prometheus(
     plan,
-    el_client_contexts,
-    cl_client_contexts,
+    el_contexts,
+    cl_contexts,
+    vc_contexts,
     additional_metrics_jobs,
     ethereum_metrics_exporter_contexts,
+    xatu_sentry_contexts,
+    global_node_selectors,
 ):
     metrics_jobs = get_metrics_jobs(
-        el_client_contexts,
-        cl_client_contexts,
+        el_contexts,
+        cl_contexts,
+        vc_contexts,
         additional_metrics_jobs,
         ethereum_metrics_exporter_contexts,
+        xatu_sentry_contexts,
     )
     prometheus_url = prometheus.run(
-        plan, metrics_jobs, MIN_CPU, MAX_CPU, MIN_MEMORY, MAX_MEMORY
+        plan,
+        metrics_jobs,
+        MIN_CPU,
+        MAX_CPU,
+        MIN_MEMORY,
+        MAX_MEMORY,
+        node_selectors=global_node_selectors,
     )
 
     return prometheus_url
 
 
 def get_metrics_jobs(
-    el_client_contexts,
-    cl_client_contexts,
+    el_contexts,
+    cl_contexts,
+    vc_contexts,
     additional_metrics_jobs,
     ethereum_metrics_exporter_contexts,
+    xatu_sentry_contexts,
 ):
     metrics_jobs = []
     # Adding execution clients metrics jobs
-    for context in el_client_contexts:
+    for context in el_contexts:
         if len(context.el_metrics_info) >= 1 and context.el_metrics_info[0] != None:
             execution_metrics_info = context.el_metrics_info[0]
             scrape_interval = PROMETHEUS_DEFAULT_SCRAPE_INTERVAL
@@ -77,7 +90,7 @@ def get_metrics_jobs(
                 )
             )
     # Adding consensus clients metrics jobs
-    for context in cl_client_contexts:
+    for context in cl_contexts:
         if (
             len(context.cl_nodes_metrics_info) >= 1
             and context.cl_nodes_metrics_info[0] != None
@@ -108,38 +121,29 @@ def get_metrics_jobs(
                     scrape_interval=scrape_interval,
                 )
             )
-        if (
-            len(context.cl_nodes_metrics_info) >= 2
-            and context.cl_nodes_metrics_info[1] != None
-        ):
-            # Adding validator node metrics
-            validator_metrics_info = context.cl_nodes_metrics_info[1]
-            scrape_interval = PROMETHEUS_DEFAULT_SCRAPE_INTERVAL
-            labels = {
-                "service": context.validator_service_name,
-                "client_type": VALIDATOR_CLIENT_TYPE,
-                "client_name": context.client_name,
-            }
-            additional_config = validator_metrics_info[
-                METRICS_INFO_ADDITIONAL_CONFIG_KEY
-            ]
-            if additional_config != None:
-                if additional_config.labels != None:
-                    labels.update(additional_config.labels)
-                if (
-                    additional_config.scrape_interval != None
-                    and additional_config.scrape_interval != ""
-                ):
-                    scrape_interval = additional_config.scrape_interval
-            metrics_jobs.append(
-                new_metrics_job(
-                    job_name=validator_metrics_info[METRICS_INFO_NAME_KEY],
-                    endpoint=validator_metrics_info[METRICS_INFO_URL_KEY],
-                    metrics_path=validator_metrics_info[METRICS_INFO_PATH_KEY],
-                    labels=labels,
-                    scrape_interval=scrape_interval,
-                )
+
+    # Adding validator clients metrics jobs
+    for context in vc_contexts:
+        if context == None:
+            continue
+        metrics_info = context.metrics_info
+
+        scrape_interval = PROMETHEUS_DEFAULT_SCRAPE_INTERVAL
+        labels = {
+            "service": context.service_name,
+            "client_type": vc_type,
+            "client_name": context.client_name,
+        }
+
+        metrics_jobs.append(
+            new_metrics_job(
+                job_name=metrics_info[METRICS_INFO_NAME_KEY],
+                endpoint=metrics_info[METRICS_INFO_URL_KEY],
+                metrics_path=metrics_info[METRICS_INFO_PATH_KEY],
+                labels=labels,
+                scrape_interval=scrape_interval,
             )
+        )
 
     # Adding ethereum-metrics-exporter metrics jobs
     for context in ethereum_metrics_exporter_contexts:
@@ -159,6 +163,23 @@ def get_metrics_jobs(
                     },
                 )
             )
+    # Adding Xatu Sentry metrics jobs
+    for context in xatu_sentry_contexts:
+        if context != None:
+            metrics_jobs.append(
+                new_metrics_job(
+                    job_name="xatu-sentry-{0}".format(context.pair_name),
+                    endpoint="{}:{}".format(
+                        context.ip_addr,
+                        context.metrics_port_num,
+                    ),
+                    metrics_path="/metrics",
+                    labels={
+                        "pair": context.pair_name,
+                    },
+                )
+            )
+
     # Adding additional metrics jobs
     for job in additional_metrics_jobs:
         if job == None:

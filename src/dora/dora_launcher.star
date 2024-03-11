@@ -30,13 +30,14 @@ USED_PORTS = {
 def launch_dora(
     plan,
     config_template,
-    cl_client_contexts,
+    cl_contexts,
     el_cl_data_files_artifact_uuid,
     electra_fork_epoch,
     network,
+    global_node_selectors,
 ):
     all_cl_client_info = []
-    for index, client in enumerate(cl_client_contexts):
+    for index, client in enumerate(cl_contexts):
         all_cl_client_info.append(
             new_cl_client_info(
                 client.ip_addr, client.http_port_num, client.beacon_service_name
@@ -62,6 +63,7 @@ def launch_dora(
         el_cl_data_files_artifact_uuid,
         electra_fork_epoch,
         network,
+        global_node_selectors,
     )
 
     plan.add_service(SERVICE_NAME, config)
@@ -72,6 +74,7 @@ def get_config(
     el_cl_data_files_artifact_uuid,
     electra_fork_epoch,
     network,
+    node_selectors,
 ):
     config_file_path = shared_utils.path_join(
         DORA_CONFIG_MOUNT_DIRPATH_ON_SERVICE,
@@ -97,6 +100,7 @@ def get_config(
         max_cpu=MAX_CPU,
         min_memory=MIN_MEMORY,
         max_memory=MAX_MEMORY,
+        node_selectors=node_selectors,
     )
 
 

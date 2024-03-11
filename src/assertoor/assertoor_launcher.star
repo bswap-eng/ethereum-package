@@ -34,15 +34,17 @@ def launch_assertoor(
     config_template,
     participant_contexts,
     participant_configs,
+    network_params,
     assertoor_params,
+    global_node_selectors,
 ):
     all_client_info = []
-    validator_client_info = []
+    vc_info = []
 
     for index, participant in enumerate(participant_contexts):
         participant_config = participant_configs[index]
-        cl_client = participant.cl_client_context
-        el_client = participant.el_client_context
+        cl_client = participant.cl_context
+        el_client = participant.el_context
 
         all_client_info.append(
             new_client_info(
@@ -55,7 +57,7 @@ def launch_assertoor(
         )
 
         if participant_config.validator_count != 0:
-            validator_client_info.append(
+            vc_info.append(
                 new_client_info(
                     cl_client.ip_addr,
                     cl_client.http_port_num,
@@ -66,7 +68,7 @@ def launch_assertoor(
             )
 
     template_data = new_config_template_data(
-        HTTP_PORT_NUMBER, all_client_info, validator_client_info, assertoor_params
+        HTTP_PORT_NUMBER, all_client_info, vc_info, assertoor_params
     )
 
     template_and_data = shared_utils.new_template_and_data(
@@ -88,18 +90,32 @@ def launch_assertoor(
     config = get_config(
         config_files_artifact_name,
         tests_config_artifacts_name,
+        network_params,
+        assertoor_params,
+        global_node_selectors,
     )
 
     plan.add_service(SERVICE_NAME, config)
 
 
-def get_config(config_files_artifact_name, tests_config_artifacts_name):
+def get_config(
+    config_files_artifact_name,
+    tests_config_artifacts_name,
+    network_params,
+    assertoor_params,
+    node_selectors,
+):
     config_file_path = shared_utils.path_join(
         ASSERTOOR_CONFIG_MOUNT_DIRPATH_ON_SERVICE,
         ASSERTOOR_CONFIG_FILENAME,
     )
 
-    IMAGE_NAME = "ethpandaops/assertoor:master"
+    if assertoor_params.image != "":
+        IMAGE_NAME = assertoor_params.image
+    elif network_params.electra_fork_epoch != None:
+        IMAGE_NAME = "ethpandaops/assertoor:verkle-support"
+    else:
+        IMAGE_NAME = "ethpandaops/assertoor:latest"
 
     return ServiceConfig(
         image=IMAGE_NAME,
@@ -114,23 +130,35 @@ def get_config(config_files_artifact_name, tests_config_artifacts_name):
         max_cpu=MAX_CPU,
         min_memory=MIN_MEMORY,
         max_memory=MAX_MEMORY,
+        node_selectors=node_selectors,
     )
 
 
-def new_config_template_data(
-    listen_port_num, client_info, validator_client_info, assertoor_params
-):
+def new_config_template_data(listen_port_num, client_info, vc_info, assertoor_params):
+    additional_tests = []
+    for index, testcfg in enumerate(assertoor_params.tests):
+        if type(testcfg) == "dict":
+            additional_tests.append(json.encode(testcfg))
+        else:
+            additional_tests.append(
+                json.encode(
+                    {
+                        "file": testcfg,
+                    }
+                )
+            )
+
     return {
         "ListenPortNum": listen_port_num,
         "ClientInfo": client_info,
-        "ValidatorClientInfo": validator_client_info,
+        "ValidatorClientInfo": vc_info,
         "RunStabilityCheck": assertoor_params.run_stability_check,
         "RunBlockProposalCheck": assertoor_params.run_block_proposal_check,
         "RunLifecycleTest": assertoor_params.run_lifecycle_test,
         "RunTransactionTest": assertoor_params.run_transaction_test,
         "RunBlobTransactionTest": assertoor_params.run_blob_transaction_test,
         "RunOpcodesTransactionTest": assertoor_params.run_opcodes_transaction_test,
-        "AdditionalTests": assertoor_params.tests,
+        "AdditionalTests": additional_tests,
     }
 
 

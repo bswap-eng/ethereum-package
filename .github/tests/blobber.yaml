@@ -1,17 +1,15 @@
 participants:
-  - el_client_type: geth
-    el_client_image: ethpandaops/geth:master
-    cl_client_type: lighthouse
-    cl_client_image: ethpandaops/lighthouse:sidecar-inclusion-proof-c6be31c
+  - el_type: geth
+    el_image: ethpandaops/geth:master
+    cl_type: lighthouse
     blobber_enabled: true
     blobber_extra_params:
       - --proposal-action-frequency=1
       - "--proposal-action={\"name\": \"blob_gossip_delay\", \"delay_milliseconds\": 1500}"
     count: 1
-  - el_client_type: geth
-    el_client_image: ethpandaops/geth:master
-    cl_client_type: lodestar
-    cl_client_image: ethpandaops/lodestar:blobs-inclproof-d5a5a47
+  - el_type: geth
+    el_image: ethpandaops/geth:master
+    cl_type: lodestar
     count: 1
 network_params:
   deneb_fork_epoch: 1

@@ -1,6 +1,6 @@
 shared_utils = import_module("../../shared_utils/shared_utils.star")
 input_parser = import_module("../../package_io/input_parser.star")
-el_client_context = import_module("../../el/el_client_context.star")
+el_context = import_module("../../el/el_context.star")
 el_admin_node_info = import_module("../../el/el_admin_node_info.star")
 genesis_constants = import_module(
     "../../prelaunch_data_generator/genesis_constants/genesis_constants.star"
@@ -17,9 +17,7 @@ METRICS_PORT_NUM = 9001
 
 # The min/max CPU/memory that the execution node can use
 EXECUTION_MIN_CPU = 300
-EXECUTION_MAX_CPU = 2000
 EXECUTION_MIN_MEMORY = 512
-EXECUTION_MAX_MEMORY = 2048
 
 # Port IDs
 RPC_PORT_ID = "rpc"
@@ -60,14 +58,15 @@ USED_PORTS = {
 ENTRYPOINT_ARGS = ["sh", "-c"]
 
 VERBOSITY_LEVELS = {
-    constants.GLOBAL_CLIENT_LOG_LEVEL.error: "1",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.warn: "2",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.info: "3",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.debug: "4",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.trace: "5",
+    constants.GLOBAL_LOG_LEVEL.error: "1",
+    constants.GLOBAL_LOG_LEVEL.warn: "2",
+    constants.GLOBAL_LOG_LEVEL.info: "3",
+    constants.GLOBAL_LOG_LEVEL.debug: "4",
+    constants.GLOBAL_LOG_LEVEL.trace: "5",
 }
 
 BUILDER_IMAGE_STR = "builder"
+SUAVE_ENABLED_GETH_IMAGE_STR = "suave"
 
 
 def launch(
@@ -88,20 +87,28 @@ def launch(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     log_level = input_parser.get_client_log_level_or_default(
         participant_log_level, global_log_level, VERBOSITY_LEVELS
     )
-    el_min_cpu = el_min_cpu if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
-    el_max_cpu = el_max_cpu if int(el_max_cpu) > 0 else EXECUTION_MAX_CPU
-    el_min_mem = el_min_mem if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
-    el_max_mem = el_max_mem if int(el_max_mem) > 0 else EXECUTION_MAX_MEMORY
-    network_name = (
-        "devnets"
-        if launcher.network != "kurtosis"
-        and launcher.network not in constants.PUBLIC_NETWORKS
-        else launcher.network
+
+    network_name = shared_utils.get_network_name(launcher.network)
+
+    el_min_cpu = int(el_min_cpu) if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
+    el_max_cpu = (
+        int(el_max_cpu)
+        if int(el_max_cpu) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["geth_max_cpu"]
     )
+    el_min_mem = int(el_min_mem) if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
+    el_max_mem = (
+        int(el_max_mem)
+        if int(el_max_mem) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["geth_max_mem"]
+    )
+
     el_volume_size = (
         el_volume_size
         if int(el_volume_size) > 0
@@ -130,9 +137,12 @@ def launch(
         extra_labels,
         launcher.capella_fork_epoch,
         launcher.electra_fork_epoch,
-        launcher.final_genesis_timestamp,
+        launcher.cancun_time,
+        launcher.prague_time,
         persistent,
         el_volume_size,
+        tolerations,
+        node_selectors,
     )
 
     service = plan.add_service(service_name, config)
@@ -146,7 +156,7 @@ def launch(
         service_name, METRICS_PATH, metrics_url
     )
 
-    return el_client_context.new_el_client_context(
+    return el_context.new_el_context(
         "geth",
         enr,
         enode,
@@ -179,16 +189,23 @@ def get_config(
     extra_labels,
     capella_fork_epoch,
     electra_fork_epoch,
-    final_genesis_timestamp,
+    cancun_time,
+    prague_time,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     # TODO: Remove this once electra fork has path based storage scheme implemented
-    if electra_fork_epoch != None or "verkle" in network:
-        if electra_fork_epoch == 0 or "verkle-gen" in network:  # verkle-gen
+    if (
+        electra_fork_epoch != None or constants.NETWORK_NAME.verkle in network
+    ) and constants.NETWORK_NAME.shadowfork not in network:
+        if (
+            electra_fork_epoch == 0 or constants.NETWORK_NAME.verkle + "-gen" in network
+        ):  # verkle-gen
             init_datadir_cmd_str = "geth --datadir={0} --cache.preimages --override.prague={1} init {2}".format(
                 EXECUTION_DATA_DIRPATH_ON_CLIENT_CONTAINER,
-                final_genesis_timestamp,
+                prague_time,
                 constants.GENESIS_CONFIG_MOUNT_PATH_ON_CONTAINER + "/genesis.json",
             )
         else:  # verkle
@@ -203,6 +220,8 @@ def get_config(
             EXECUTION_DATA_DIRPATH_ON_CLIENT_CONTAINER,
             constants.GENESIS_CONFIG_MOUNT_PATH_ON_CONTAINER + "/genesis.json",
         )
+    elif constants.NETWORK_NAME.shadowfork in network:
+        init_datadir_cmd_str = "echo shadowfork"
     else:
         init_datadir_cmd_str = "geth init --state.scheme=path --datadir={0} {1}".format(
             EXECUTION_DATA_DIRPATH_ON_CLIENT_CONTAINER,
@@ -218,6 +237,7 @@ def get_config(
             "--state.scheme=path"
             if electra_fork_epoch == None
             and "verkle" not in network
+            and constants.NETWORK_NAME.shadowfork not in network  # for now
             and "--builder" not in extra_params
             and capella_fork_epoch == 0
             else ""
@@ -230,12 +250,17 @@ def get_config(
         ),
         # Override prague fork timestamp if electra_fork_epoch == 0
         "{0}".format(
-            "--override.prague=" + final_genesis_timestamp
+            "--override.prague=" + str(prague_time)
             if electra_fork_epoch == 0 or "verkle-gen" in network
             else ""
         ),
         "{0}".format(
             "--{}".format(network) if network in constants.PUBLIC_NETWORKS else ""
+        ),
+        "{0}".format(
+            "--override.cancun=" + str(cancun_time)
+            if constants.NETWORK_NAME.shadowfork in network
+            else ""
         ),
         "--networkid={0}".format(networkid),
         "--verbosity=" + verbosity_level,
@@ -273,7 +298,17 @@ def get_config(
             if "--ws.api" in arg:
                 cmd[index] = "--ws.api=admin,engine,net,eth,web3,debug,mev,flashbots"
 
-    if network == "kurtosis":
+    if SUAVE_ENABLED_GETH_IMAGE_STR in image:
+        for index, arg in enumerate(cmd):
+            if "--http.api" in arg:
+                cmd[index] = "--http.api=admin,engine,net,eth,web3,debug,suavex"
+            if "--ws.api" in arg:
+                cmd[index] = "--ws.api=admin,engine,net,eth,web3,debug,suavex"
+
+    if (
+        network == constants.NETWORK_NAME.kurtosis
+        or constants.NETWORK_NAME.shadowfork in network
+    ):
         if len(existing_el_clients) > 0:
             cmd.append(
                 "--bootnodes="
@@ -284,6 +319,13 @@ def get_config(
                     ]
                 )
             )
+        if (
+            constants.NETWORK_NAME.shadowfork in network and "verkle" in network
+        ):  # verkle shadowfork
+            cmd.append("--override.prague=" + str(prague_time))
+            cmd.append("--override.overlay-stride=10000")
+            cmd.append("--override.blockproof=true")
+            cmd.append("--clear.verkle.costs=true")
     elif network not in constants.PUBLIC_NETWORKS:
         cmd.append(
             "--bootnodes="
@@ -328,12 +370,14 @@ def get_config(
         max_memory=el_max_mem,
         env_vars=extra_env_vars,
         labels=shared_utils.label_maker(
-            constants.EL_CLIENT_TYPE.geth,
+            constants.EL_TYPE.geth,
             constants.CLIENT_TYPES.el,
             image,
             cl_client_name,
             extra_labels,
         ),
+        tolerations=tolerations,
+        node_selectors=node_selectors,
     )
 
 
@@ -342,8 +386,9 @@ def new_geth_launcher(
     jwt_file,
     network,
     networkid,
-    final_genesis_timestamp,
     capella_fork_epoch,
+    cancun_time,
+    prague_time,
     electra_fork_epoch=None,
 ):
     return struct(
@@ -351,7 +396,8 @@ def new_geth_launcher(
         jwt_file=jwt_file,
         network=network,
         networkid=networkid,
-        final_genesis_timestamp=final_genesis_timestamp,
         capella_fork_epoch=capella_fork_epoch,
+        cancun_time=cancun_time,
+        prague_time=prague_time,
         electra_fork_epoch=electra_fork_epoch,
     )

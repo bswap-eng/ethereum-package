@@ -14,18 +14,20 @@ def launch_blob_spammer(
     plan,
     prefunded_addresses,
     el_uri,
-    cl_client_context,
+    cl_context,
     deneb_fork_epoch,
     seconds_per_slot,
     genesis_delay,
+    global_node_selectors,
 ):
     config = get_config(
         prefunded_addresses,
         el_uri,
-        cl_client_context,
+        cl_context,
         deneb_fork_epoch,
         seconds_per_slot,
         genesis_delay,
+        global_node_selectors,
     )
     plan.add_service(SERVICE_NAME, config)
 
@@ -33,10 +35,11 @@ def launch_blob_spammer(
 def get_config(
     prefunded_addresses,
     el_uri,
-    cl_client_context,
+    cl_context,
     deneb_fork_epoch,
     seconds_per_slot,
     genesis_delay,
+    node_selectors,
 ):
     dencunTime = (deneb_fork_epoch * 32 * seconds_per_slot) + genesis_delay
     return ServiceConfig(
@@ -48,12 +51,12 @@ def get_config(
                     "apk update",
                     "apk add curl jq",
                     'current_epoch=$(curl -s http://{0}:{1}/eth/v2/beacon/blocks/head | jq -r ".version")'.format(
-                        cl_client_context.ip_addr, cl_client_context.http_port_num
+                        cl_context.ip_addr, cl_context.http_port_num
                     ),
                     "echo $current_epoch",
                     'while [ $current_epoch != "deneb" ]; do echo "waiting for deneb, current epoch is $current_epoch"; current_epoch=$(curl -s http://{0}:{1}/eth/v2/beacon/blocks/head | jq -r ".version"); sleep {2}; done'.format(
-                        cl_client_context.ip_addr,
-                        cl_client_context.http_port_num,
+                        cl_context.ip_addr,
+                        cl_context.http_port_num,
                         seconds_per_slot,
                     ),
                     'echo "sleep is over, starting to send blob transactions"',
@@ -68,4 +71,5 @@ def get_config(
         max_cpu=MAX_CPU,
         min_memory=MIN_MEMORY,
         max_memory=MAX_MEMORY,
+        node_selectors=node_selectors,
     )

@@ -1,6 +1,6 @@
 shared_utils = import_module("../../shared_utils/shared_utils.star")
 input_parser = import_module("../../package_io/input_parser.star")
-el_client_context = import_module("../../el/el_client_context.star")
+el_context = import_module("../../el/el_context.star")
 el_admin_node_info = import_module("../../el/el_admin_node_info.star")
 node_metrics = import_module("../../node_metrics_info.star")
 constants = import_module("../../package_io/constants.star")
@@ -50,12 +50,12 @@ USED_PORTS = {
 
 ENTRYPOINT_ARGS = ["sh", "-c"]
 
-BESU_LOG_LEVELS = {
-    constants.GLOBAL_CLIENT_LOG_LEVEL.error: "ERROR",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.warn: "WARN",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.info: "INFO",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.debug: "DEBUG",
-    constants.GLOBAL_CLIENT_LOG_LEVEL.trace: "TRACE",
+VERBOSITY_LEVELS = {
+    constants.GLOBAL_LOG_LEVEL.error: "ERROR",
+    constants.GLOBAL_LOG_LEVEL.warn: "WARN",
+    constants.GLOBAL_LOG_LEVEL.info: "INFO",
+    constants.GLOBAL_LOG_LEVEL.debug: "DEBUG",
+    constants.GLOBAL_LOG_LEVEL.trace: "TRACE",
 }
 
 
@@ -76,21 +76,28 @@ def launch(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     log_level = input_parser.get_client_log_level_or_default(
-        participant_log_level, global_log_level, BESU_LOG_LEVELS
+        participant_log_level, global_log_level, VERBOSITY_LEVELS
     )
 
+    network_name = shared_utils.get_network_name(launcher.network)
+
     el_min_cpu = int(el_min_cpu) if int(el_min_cpu) > 0 else EXECUTION_MIN_CPU
-    el_max_cpu = int(el_max_cpu) if int(el_max_cpu) > 0 else EXECUTION_MAX_CPU
-    el_min_mem = int(el_min_mem) if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
-    el_max_mem = int(el_max_mem) if int(el_max_mem) > 0 else EXECUTION_MAX_MEMORY
-    network_name = (
-        "devnets"
-        if launcher.network != "kurtosis"
-        and launcher.network not in constants.PUBLIC_NETWORKS
-        else launcher.network
+    el_max_cpu = (
+        int(el_max_cpu)
+        if int(el_max_cpu) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["besu_max_cpu"]
     )
+    el_min_mem = int(el_min_mem) if int(el_min_mem) > 0 else EXECUTION_MIN_MEMORY
+    el_max_mem = (
+        int(el_max_mem)
+        if int(el_max_mem) > 0
+        else constants.RAM_CPU_OVERRIDES[network_name]["besu_max_mem"]
+    )
+
     el_volume_size = (
         el_volume_size
         if int(el_volume_size) > 0
@@ -118,6 +125,8 @@ def launch(
         extra_labels,
         persistent,
         el_volume_size,
+        tolerations,
+        node_selectors,
     )
 
     service = plan.add_service(service_name, config)
@@ -129,7 +138,7 @@ def launch(
         service_name, METRICS_PATH, metrics_url
     )
 
-    return el_client_context.new_el_client_context(
+    return el_context.new_el_context(
         "besu",
         "",  # besu has no ENR
         enode,
@@ -161,6 +170,8 @@ def get_config(
     extra_labels,
     persistent,
     el_volume_size,
+    tolerations,
+    node_selectors,
 ):
     cmd = [
         "besu",
@@ -189,7 +200,10 @@ def get_config(
         "--metrics-host=0.0.0.0",
         "--metrics-port={0}".format(METRICS_PORT_NUM),
     ]
-    if network not in constants.PUBLIC_NETWORKS:
+    if (
+        network not in constants.PUBLIC_NETWORKS
+        or constants.NETWORK_NAME.shadowfork in network
+    ):
         cmd.append(
             "--genesis-file="
             + constants.GENESIS_CONFIG_MOUNT_PATH_ON_CONTAINER
@@ -198,7 +212,7 @@ def get_config(
     else:
         cmd.append("--network=" + network)
 
-    if network == "kurtosis":
+    if network == constants.NETWORK_NAME.kurtosis:
         if len(existing_el_clients) > 0:
             cmd.append(
                 "--bootnodes="
@@ -248,13 +262,15 @@ def get_config(
         min_memory=el_min_mem,
         max_memory=el_max_mem,
         labels=shared_utils.label_maker(
-            constants.EL_CLIENT_TYPE.besu,
+            constants.EL_TYPE.besu,
             constants.CLIENT_TYPES.el,
             image,
             cl_client_name,
             extra_labels,
         ),
         user=User(uid=0, gid=0),
+        tolerations=tolerations,
+        node_selectors=node_selectors,
     )
 
 

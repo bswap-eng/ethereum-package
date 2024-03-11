@@ -1,5 +1,96 @@
 # Changelog
 
+## [2.0.0](https://github.com/kurtosis-tech/ethereum-package/compare/1.4.0...2.0.0) (2024-03-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* participant_network & rename participant fields. ([#508](https://github.com/kurtosis-tech/ethereum-package/issues/508))
+* add node selectors features ([#491](https://github.com/kurtosis-tech/ethereum-package/issues/491))
+
+### Features
+
+* add keymanager to all validator processes ([#502](https://github.com/kurtosis-tech/ethereum-package/issues/502)) ([836eda4](https://github.com/kurtosis-tech/ethereum-package/commit/836eda4eed3776dd406d354343655c0ff8b9d2b6))
+* add nimbus-eth1 ([#496](https://github.com/kurtosis-tech/ethereum-package/issues/496)) ([d599729](https://github.com/kurtosis-tech/ethereum-package/commit/d599729295aa3274d23e4e8e99b56288cde3fc04))
+* add node selectors features ([#491](https://github.com/kurtosis-tech/ethereum-package/issues/491)) ([316d42f](https://github.com/kurtosis-tech/ethereum-package/commit/316d42fbaeb2d7bc1d580823a6c70b1c2dfe3746))
+* allow more detailed additional test configurations in assertoor_params ([#498](https://github.com/kurtosis-tech/ethereum-package/issues/498)) ([fe2de7e](https://github.com/kurtosis-tech/ethereum-package/commit/fe2de7e5a5e2446ebb0a0b191f5aa6783e132426))
+* enable api in assertoor config ([#495](https://github.com/kurtosis-tech/ethereum-package/issues/495)) ([9ceae9c](https://github.com/kurtosis-tech/ethereum-package/commit/9ceae9c74405db4e1ab6e02de541577d078434ae))
+* enable dencun-genesis ([#500](https://github.com/kurtosis-tech/ethereum-package/issues/500)) ([beb764f](https://github.com/kurtosis-tech/ethereum-package/commit/beb764fb9a18fcb09cb7d3d9ee48e4826595512d))
+* make snapshot url configurable ([#507](https://github.com/kurtosis-tech/ethereum-package/issues/507)) ([6fa0475](https://github.com/kurtosis-tech/ethereum-package/commit/6fa04751cd1277a4870dc45144e15ffa5d637b93))
+* parameterize mev-boost args ([#400](https://github.com/kurtosis-tech/ethereum-package/issues/400)) ([e48483a](https://github.com/kurtosis-tech/ethereum-package/commit/e48483a130ba227dafd0d0fd9ee66c6cecc3bfce))
+* separate validator clients from CL clients ([#497](https://github.com/kurtosis-tech/ethereum-package/issues/497)) ([90da2c3](https://github.com/kurtosis-tech/ethereum-package/commit/90da2c33a77b4a0ac620ae665899963256a1ae0a))
+
+
+### Bug Fixes
+
+* fix end index in validator ranges file ([#509](https://github.com/kurtosis-tech/ethereum-package/issues/509)) ([da55be8](https://github.com/kurtosis-tech/ethereum-package/commit/da55be84861e93ce777076e545abee35ff2d51ce))
+* lh vc flag logic ([#506](https://github.com/kurtosis-tech/ethereum-package/issues/506)) ([bc5e725](https://github.com/kurtosis-tech/ethereum-package/commit/bc5e725edf8c917d409e6de6ce838797ad166173))
+* nimbus-eth1 advertise proper extip ([#501](https://github.com/kurtosis-tech/ethereum-package/issues/501)) ([1d5a779](https://github.com/kurtosis-tech/ethereum-package/commit/1d5a7792c8175d1fc85e424b5ddf60baec551821))
+* README global node selector ([#504](https://github.com/kurtosis-tech/ethereum-package/issues/504)) ([f9343a2](https://github.com/kurtosis-tech/ethereum-package/commit/f9343a2914456196e1209336c426b6ad44958428))
+* use the cl as the default validator image if none are defined ([#503](https://github.com/kurtosis-tech/ethereum-package/issues/503)) ([181dd04](https://github.com/kurtosis-tech/ethereum-package/commit/181dd04c2db17c58cb9370b0d24e12e4c191a13d))
+
+
+### Code Refactoring
+
+* participant_network & rename participant fields. ([#508](https://github.com/kurtosis-tech/ethereum-package/issues/508)) ([fab341b](https://github.com/kurtosis-tech/ethereum-package/commit/fab341b158329b9e8c2b590dc63127dfd1d2495f))
+
+## [1.4.0](https://github.com/kurtosis-tech/ethereum-package/compare/1.3.0...1.4.0) (2024-02-09)
+
+
+### Features
+
+* Add suave-enabled geth support ([#489](https://github.com/kurtosis-tech/ethereum-package/issues/489)) ([631eaf3](https://github.com/kurtosis-tech/ethereum-package/commit/631eaf3e621c90d5b546a1c005d8e31e06263aa4))
+* add support for custom assertoor images & use assertoor image with verkle support for verkle chains ([#483](https://github.com/kurtosis-tech/ethereum-package/issues/483)) ([2d8a143](https://github.com/kurtosis-tech/ethereum-package/commit/2d8a143f753eaa3ec13abe4ebbb57bf82548b3fb))
+* add verkle-gen-devnet-3 ([#487](https://github.com/kurtosis-tech/ethereum-package/issues/487)) ([1e543e8](https://github.com/kurtosis-tech/ethereum-package/commit/1e543e873c06e86a6448f8e88c53fb1bde35338e))
+* blockscout support with sc verification ([#481](https://github.com/kurtosis-tech/ethereum-package/issues/481)) ([b3418cf](https://github.com/kurtosis-tech/ethereum-package/commit/b3418cf1545378d4b412966b9c33f650141aec04))
+* enable custom resource limit per network ([#471](https://github.com/kurtosis-tech/ethereum-package/issues/471)) ([5db6611](https://github.com/kurtosis-tech/ethereum-package/commit/5db6611ab831a92212a21859b42a911cd12bce0c))
+* enable shadowforking ([#475](https://github.com/kurtosis-tech/ethereum-package/issues/475)) ([b788b18](https://github.com/kurtosis-tech/ethereum-package/commit/b788b18eead00622ab960a4853c8e24b09c16a26))
+* improve built-in assertoor tests ([#488](https://github.com/kurtosis-tech/ethereum-package/issues/488)) ([d596699](https://github.com/kurtosis-tech/ethereum-package/commit/d5966991653ad48094cf71d3c01612349a651877))
+* we no longer need 4788 deployer ([#485](https://github.com/kurtosis-tech/ethereum-package/issues/485)) ([abdfc2c](https://github.com/kurtosis-tech/ethereum-package/commit/abdfc2c3e73550069c2fbe0df5202f7f227a00cd))
+
+
+### Bug Fixes
+
+* add more prefund addresses for verkle-gen ([#482](https://github.com/kurtosis-tech/ethereum-package/issues/482)) ([01868fc](https://github.com/kurtosis-tech/ethereum-package/commit/01868fcb604852cf66474fc9de9a53a7b87b7bc3))
+* bump verkle genesis generator ([#486](https://github.com/kurtosis-tech/ethereum-package/issues/486)) ([79dc5e1](https://github.com/kurtosis-tech/ethereum-package/commit/79dc5e19713d3f898f6255394290497d016f32d5))
+* use latest stable image for assertoor ([#484](https://github.com/kurtosis-tech/ethereum-package/issues/484)) ([bbe0b16](https://github.com/kurtosis-tech/ethereum-package/commit/bbe0b16e948fc50f51273e2f0ab91503603e9fc9))
+
+## [1.3.0](https://github.com/kurtosis-tech/ethereum-package/compare/1.2.0...1.3.0) (2024-01-22)
+
+
+### Features
+
+* add assertoor to additional toolings ([#419](https://github.com/kurtosis-tech/ethereum-package/issues/419)) ([76dde3e](https://github.com/kurtosis-tech/ethereum-package/commit/76dde3ed421da0d7f8ba16f46565b07019be76c0))
+* add devnets support ([#384](https://github.com/kurtosis-tech/ethereum-package/issues/384)) ([2bae099](https://github.com/kurtosis-tech/ethereum-package/commit/2bae09931ed1cdcfe499efaae420c981dabcea62))
+* add pitfalls for persistent storage as a warning ([#441](https://github.com/kurtosis-tech/ethereum-package/issues/441)) ([69da8f0](https://github.com/kurtosis-tech/ethereum-package/commit/69da8f04fcfd5ce19365bd89ca73c13cbc40d76a))
+* add support for testnets ([#437](https://github.com/kurtosis-tech/ethereum-package/issues/437)) ([5584cc8](https://github.com/kurtosis-tech/ethereum-package/commit/5584cc84c50ca9845c544810fb8331ec8fcdcbc8))
+* Add Xatu Sentry ([#466](https://github.com/kurtosis-tech/ethereum-package/issues/466)) ([b9523cb](https://github.com/kurtosis-tech/ethereum-package/commit/b9523cb7083be78c96bb88a7ca86d142cb0eec1d))
+* enable checkpoint sync for devnets ([#448](https://github.com/kurtosis-tech/ethereum-package/issues/448)) ([b367cfe](https://github.com/kurtosis-tech/ethereum-package/commit/b367cfe875900bdc8aa70dc8b1d8aebdbcf81593))
+* enable persistence ([#422](https://github.com/kurtosis-tech/ethereum-package/issues/422)) ([8d40056](https://github.com/kurtosis-tech/ethereum-package/commit/8d400566aa54132dccaa7ff129adc12e547907a0))
+* enable syncing ephemery ([#459](https://github.com/kurtosis-tech/ethereum-package/issues/459)) ([f8289cb](https://github.com/kurtosis-tech/ethereum-package/commit/f8289cb49f68dd488635d2313c007ee7c2f4dbf3))
+* enable syncing shadowforks ([#457](https://github.com/kurtosis-tech/ethereum-package/issues/457)) ([313a586](https://github.com/kurtosis-tech/ethereum-package/commit/313a586965efa6739e8d4055f1263a89d48ff499))
+
+
+### Bug Fixes
+
+* add CL genesis delay to final genesis time ([#469](https://github.com/kurtosis-tech/ethereum-package/issues/469)) ([e36027b](https://github.com/kurtosis-tech/ethereum-package/commit/e36027b91de0ae8943012ffd6ba776142d2e2d78))
+* add prysm-multiarch upstream image ([#451](https://github.com/kurtosis-tech/ethereum-package/issues/451)) ([6feba23](https://github.com/kurtosis-tech/ethereum-package/commit/6feba237fbdfae021402ceeec89baa75df6d83d5))
+* added supprot for boot enr file ([#456](https://github.com/kurtosis-tech/ethereum-package/issues/456)) ([fd26e5c](https://github.com/kurtosis-tech/ethereum-package/commit/fd26e5c31609b48e1d6718f72d295a27a7d84a49))
+* bump max mem limit for nimbus on holesky ([#439](https://github.com/kurtosis-tech/ethereum-package/issues/439)) ([fb84787](https://github.com/kurtosis-tech/ethereum-package/commit/fb84787694faa86872828b92529f51e6c9ac7d44))
+* dora template fix ([#452](https://github.com/kurtosis-tech/ethereum-package/issues/452)) ([f9243ea](https://github.com/kurtosis-tech/ethereum-package/commit/f9243ea8cdec8a0145206831c9c043269c80e863))
+* enable ws for geth ([#446](https://github.com/kurtosis-tech/ethereum-package/issues/446)) ([d5bf451](https://github.com/kurtosis-tech/ethereum-package/commit/d5bf45150dc09432bb84b366d2deda8c6036afea))
+* erigon chain should be set to dev ([#447](https://github.com/kurtosis-tech/ethereum-package/issues/447)) ([1f40d84](https://github.com/kurtosis-tech/ethereum-package/commit/1f40d8402666310cad81066852110aa20627471b))
+* erigon command arg ([#454](https://github.com/kurtosis-tech/ethereum-package/issues/454)) ([5ae56a1](https://github.com/kurtosis-tech/ethereum-package/commit/5ae56a17773122827b074963dee40a43a00478ea))
+* fix typo ([#440](https://github.com/kurtosis-tech/ethereum-package/issues/440)) ([933a313](https://github.com/kurtosis-tech/ethereum-package/commit/933a3133bf9b1fe96ea3c537b26c3c8ced0a35e3))
+* guid fix for besu/teku/erigon/nimbus ([#443](https://github.com/kurtosis-tech/ethereum-package/issues/443)) ([2283464](https://github.com/kurtosis-tech/ethereum-package/commit/2283464b614b0ade4aa98fccd842e8e4b23e188a))
+* increase db size for geth ([#453](https://github.com/kurtosis-tech/ethereum-package/issues/453)) ([0c67998](https://github.com/kurtosis-tech/ethereum-package/commit/0c67998567a4ab60dd0355b734076ee47b988326))
+* logging bug ([#462](https://github.com/kurtosis-tech/ethereum-package/issues/462)) ([f6098a1](https://github.com/kurtosis-tech/ethereum-package/commit/f6098a1572923655426f25eab936b7a0b9fbc116))
+* parallel key generation ([#423](https://github.com/kurtosis-tech/ethereum-package/issues/423)) ([060fd8f](https://github.com/kurtosis-tech/ethereum-package/commit/060fd8fb3ed8e12be895a43912787313c1ad4a5f))
+* re-add networkid ([#464](https://github.com/kurtosis-tech/ethereum-package/issues/464)) ([4d96409](https://github.com/kurtosis-tech/ethereum-package/commit/4d96409cdbd1a367fc1e924cb9183eadce4eeae7))
+* typo ([#445](https://github.com/kurtosis-tech/ethereum-package/issues/445)) ([e61c58a](https://github.com/kurtosis-tech/ethereum-package/commit/e61c58a8c2944cbf2699bd75d25a2e63d8e0621c))
+* Update nethermind to expose host on 0.0.0.0 ([#467](https://github.com/kurtosis-tech/ethereum-package/issues/467)) ([0bd29dd](https://github.com/kurtosis-tech/ethereum-package/commit/0bd29dd7d61dae77b7820f79d46e8a52e74267c2))
+* use all enrs for nimbus via bootstrap file ([#450](https://github.com/kurtosis-tech/ethereum-package/issues/450)) ([bb5a0c1](https://github.com/kurtosis-tech/ethereum-package/commit/bb5a0c1b5b051b23b185cfd366a2dfed3f44d903))
+
 ## [1.2.0](https://github.com/kurtosis-tech/ethereum-package/compare/1.1.0...1.2.0) (2024-01-03)
 
 

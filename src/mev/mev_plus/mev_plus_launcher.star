@@ -4,9 +4,13 @@ mev_boost_context_module = import_module("../mev_boost/mev_boost_context.star")
 input_parser = import_module("../../package_io/input_parser.star")
 
 MEV_PLUS_PROTOCOL = "TCP"
+MIN_CPU = 10
+MAX_CPU = 500
+MIN_MEMORY = 16
+MAX_MEMORY = 256
 
-def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image, mev_plus_flags):
-    config = get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags)
+def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image, mev_plus_flags, global_node_selectors):
+    config = get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags, global_node_selectors)
 
     mev_plus_service = plan.add_service(service_name, config)
 
@@ -16,7 +20,7 @@ def launch(plan, mev_plus_launcher, service_name, network_params, mev_plus_image
         service_name,
     )
 
-def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags):
+def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags, node_selectors):
     used_ports = {
         "builderApi.listen-address": shared_utils.new_port_spec(
             input_parser.MEV_PLUS_BUILDER_API_PORT,
@@ -86,27 +90,12 @@ def get_config(mev_plus_launcher, network_params, mev_plus_image, mev_plus_flags
                 input_parser.MEV_PLUS_BUILDER_API_PORT,
             ),
         },
+        min_cpu=MIN_CPU,
+        max_cpu=MAX_CPU,
+        min_memory=MIN_MEMORY,
+        max_memory=MAX_MEMORY,
+        node_selectors=node_selectors,
     )
-
-'''
-   Block Aggregator
-   
-    --blockAggregator.genesis-time value (default: 0)
-          Set the genesis time (in seconds)
-
-
-   Relay Module
-   
-    --relay.genesis-fork-version value (default: "0x00000000")
-          Set a custom fork version
-   
-    --relay.genesis-time value     (default: 0)
-          Set a custom genesis time
-   
-    --relay.genesis-validators-root value (default: "0x00000000000000000000000000000000")
-          Set a custom genesis validators root
-
-'''
 
 def new_mev_plus_launcher(should_check_relay, relay_end_points, external_validator_proxy_context):
     return struct(

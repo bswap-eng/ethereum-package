@@ -211,7 +211,7 @@ def read_genesis_timestamp_from_config(plan, filename):
         packages=["PyYAML"],
         run="""
 import yaml
-with open("/network-configs/config.yaml", "r") as f:
+with open("/network-configs/network-configs/config.yaml", "r") as f:
     yaml_data = yaml.safe_load(f)
 
 min_genesis_time = int(yaml_data.get("MIN_GENESIS_TIME", 0))
@@ -229,10 +229,67 @@ def read_genesis_network_id_from_config(plan, filename):
         packages=["PyYAML"],
         run="""
 import yaml
-with open("/network-configs/config.yaml", "r") as f:
+with open("/network-configs/network-configs/config.yaml", "r") as f:
     yaml_data = yaml.safe_load(f)
 network_id = int(yaml_data.get("DEPOSIT_NETWORK_ID", 0))
 print(network_id, end="")
         """,
     )
     return value.output
+
+
+def get_network_name(network):
+    network_name = network
+    if (
+        network != constants.NETWORK_NAME.kurtosis
+        and network != constants.NETWORK_NAME.ephemery
+        and constants.NETWORK_NAME.shadowfork not in network
+        and network not in constants.PUBLIC_NETWORKS
+    ):
+        network_name = "devnets"
+
+    if constants.NETWORK_NAME.shadowfork in network:
+        network_name = network.split("-shadowfork")[0]
+
+    return network_name
+
+
+# this is a python procedure so that Kurtosis can do idempotent runs
+# time.now() runs everytime bringing non determinism
+# note that the timestamp it returns is a string
+def get_final_genesis_timestamp(plan, padding):
+    result = plan.run_python(
+        run="""
+import time
+import sys
+padding = int(sys.argv[1])
+print(int(time.time()+padding), end="")
+""",
+        args=[str(padding)],
+        store=[StoreSpec(src="/tmp", name="final-genesis-timestamp")],
+    )
+    return result.output
+
+
+def calculate_devnet_url(network):
+    sf_suffix_mapping = {"hsf": "-hsf-", "gsf": "-gsf-", "ssf": "-ssf-"}
+    shadowfork = "sf-" in network
+
+    if shadowfork:
+        for suffix, delimiter in sf_suffix_mapping.items():
+            if delimiter in network:
+                network_parts = network.split(delimiter, 1)
+                network_type = suffix
+    else:
+        network_parts = network.split("-devnet-", 1)
+        network_type = "devnet"
+
+    devnet_name, devnet_number = network_parts[0], network_parts[1]
+    devnet_category = devnet_name.split("-")[0]
+    devnet_subname = (
+        devnet_name.split("-")[1] + "-" if len(devnet_name.split("-")) > 1 else ""
+    )
+
+    return "github.com/ethpandaops/{0}-devnets/network-configs/{1}{2}-{3}".format(
+        devnet_category, devnet_subname, network_type, devnet_number
+    )
