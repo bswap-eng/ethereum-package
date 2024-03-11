@@ -311,14 +311,14 @@ def run(plan, args = {}):
                 MEV_PLUS_SHOULD_CHECK_RELAY,
                 (mev_endpoints if mev_params.use_mev_plus else []),
                 (proxy_software_contexts["mev_boost"].get(
-                    "{0}-{1}-{2}-{3}".format(input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index_str, participant.cl_type, participant.el_client_type),
+                    "{0}-{1}-{2}-{3}".format(input_parser.MEV_BOOST_SERVICE_NAME_PREFIX, index_str, participant.cl_type, participant.el_type),
                 ) if mev_params.use_mev_boost else None),
             )
             mev_plus_service_name = "{0}-{1}-{2}-{3}".format(
                 input_parser.MEV_PLUS_SERVICE_NAME_PREFIX,
                 index_str,
                 participant.cl_type,
-                participant.el_client_type,
+                participant.el_type,
             )
             mev_plus_context = mev_plus.launch(
                 plan,
